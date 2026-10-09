@@ -111,3 +111,10 @@ Both commands require **Administrator** permissions in the server:
 
 * `/setup-team-roles`: Run in `#team-assignment` to post the interactive role selection panel.
 * `/setup-tickets`: Run in your hardware announcements or requests channel to post the ticket creation panel.
+
+---
+
+## ☁️ Azure Cloud Hosting
+
+For instructions on deploying this bot to **Azure Container Apps (ACA)** to run 24/7 with zero maintenance, see our **[Azure Deployment Guide](docs/AZURE_DEPLOYMENT.md)**.
+
