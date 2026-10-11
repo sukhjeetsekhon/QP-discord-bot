@@ -17,3 +17,4 @@ COPY . .
 
 # Run the bot
 CMD ["python", "bot.py"]
+

@@ -25,29 +25,30 @@ Azure Container Apps is a modern, fully-managed serverless container service tha
    * **Region**: Choose the closest region (e.g., `West US 2` or `East US`).
    * **Container Apps Environment**: Click *Create new* and choose default settings.
 
-### Step 2: Configure the Container
+### Step 2: Configure the Container (Simplified Wizard)
 In the **Container** tab:
-* **Image Source**: Docker Hub or other registries (or Azure Container Registry if you created one).
-* If you pushed your image to GitHub Container Registry (`ghcr.io`):
-  * **Image type**: Other registry
-  * **Image and tag**: `ghcr.io/<your-github-username>/qp-discord-bot:latest`
-* **CPU and Memory**: `0.25 vCPU, 0.5 GiB` (more than enough for a Discord bot and very cheap / practically free).
+* **Use quickstart image**: **Check this box** if you haven't pushed your image to a registry yet (lets Azure create the app immediately so you can swap the image later).
+* **Workload profile type**: `Consumption`
+* **CPU and Memory**: `0.25 CPU cores`, `0.5 Gi memory` (lowest tier, plenty for a Discord bot and practically free).
+* **Ingress**: If using the quickstart image, the simplified wizard keeps Ingress Enabled (Port 80). Leave it as-is and click **Review + create**!
 
-### Step 3: Add Environment Variables & Secrets
-Under the container configuration, add:
-* `DISCORD_TOKEN`: Add as a **Secret**, then reference it.
-* `MAX_TEAMS`: `28`
-* `STAFF_ROLE_NAME`: `QP Chair`
-* `TICKETS_CATEGORY_NAME`: `Hardware Requests`
+### Step 3: Post-Creation Setup (After Deployment Finishes)
+Once your Container App is created, click **Go to resource** and configure these settings in the left sidebar:
 
-### Step 4: Ingress & Scale Configuration
-* **Ingress tab**:
-  * Uncheck / Disable **Enable Ingress** (Discord bots do not listen for incoming HTTP traffic).
-* **Scale tab** (or after creation under Settings > Scale):
-  * **Min replicas**: `1` *(CRITICAL: prevents bot from sleeping)*
-  * **Max replicas**: `1`
-
-Click **Review + create** and deploy!
+1. **Disable Ingress**:
+   * Go to **Settings** > **Ingress**.
+   * Toggle **Ingress** to **Disabled** and click **Save**.
+2. **Set Always-On (Min Replicas = 1)**:
+   * Go to **Application** > **Scale and replicas**.
+   * Set **Min replicas** to `1` and **Max replicas** to `1`, then click **Save** *(prevents the bot from sleeping)*.
+3. **Add Environment Variables & Swap Image**:
+   * Go to **Application** > **Containers** > click **Edit and deploy**.
+   * Once your image is on GitHub Container Registry, set Image to `ghcr.io/<your-github-username>/qp-discord-bot:latest`.
+   * Under **Environment variables**, add:
+     * `DISCORD_TOKEN`: `<your_bot_token>`
+     * `MAX_TEAMS`: `28`
+     * `STAFF_ROLE_NAME`: `QP Chair`
+     * `TICKETS_CATEGORY_NAME`: `Hardware Requests`
 
 ---
 
@@ -116,3 +117,4 @@ Every time you push code to `main`:
 1. GitHub Actions builds the Docker image.
 2. It pushes the image to GitHub Packages (`ghcr.io`).
 3. You can configure Azure credentials in your repository's GitHub Secrets to automatically roll out updates to Azure!
+
