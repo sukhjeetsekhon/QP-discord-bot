@@ -2,6 +2,7 @@ import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
+from typing import List
 import config
 import database
 from cogs.hardware_tickets import is_staff_or_admin
@@ -9,28 +10,38 @@ from cogs.team_assignment import TEAM_ROLE_PATTERN
 
 
 class TeamWorkspacesCog(commands.Cog):
-    """Commands for generating private team workspaces and viewing team directories."""
+    """Commands for generating quarterly team workspaces and viewing team directories."""
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     @app_commands.command(
         name="setup-team-workspaces",
-        description="Auto-generate private text & voice workspaces for all 28 teams (Admin only).",
+        description="Auto-configure text and voice categories and channels for a new quarter (Admin only).",
     )
     @app_commands.describe(
-        start_team="First team number to create (default: 1)",
-        end_team=f"Last team number to create (default: {config.MAX_TEAMS})",
+        season="Quarter season (Fall, Winter, Spring, Summer)",
+        year="Year of the quarter (e.g. 2026)",
+        num_teams="Total number of teams to configure (e.g. 28)",
+    )
+    @app_commands.choices(
+        season=[
+            app_commands.Choice(name="Fall", value="Fall"),
+            app_commands.Choice(name="Winter", value="Winter"),
+            app_commands.Choice(name="Spring", value="Spring"),
+            app_commands.Choice(name="Summer", value="Summer"),
+        ]
     )
     @app_commands.default_permissions(administrator=True)
     async def setup_team_workspaces(
         self,
         interaction: discord.Interaction,
-        start_team: int = 1,
-        end_team: int = config.MAX_TEAMS,
+        season: app_commands.Choice[str],
+        year: int,
+        num_teams: int = 28,
     ):
         if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
             await interaction.response.send_message(
-                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role or Administrators can run this command.",
+                f"❌ Only Administrators or Leadership roles ({', '.join(config.STAFF_ROLES)}) can run this command.",
                 ephemeral=True,
             )
             return
@@ -40,115 +51,146 @@ class TeamWorkspacesCog(commands.Cog):
             await interaction.response.send_message("❌ Must be run in a server.", ephemeral=True)
             return
 
-        if start_team < 1 or end_team > config.MAX_TEAMS or start_team > end_team:
+        if num_teams < 1 or num_teams > 50:
             await interaction.response.send_message(
-                f"❌ Invalid team range. Must be between 1 and {config.MAX_TEAMS}.", ephemeral=True
+                "❌ Number of teams must be between 1 and 50 (Discord limits categories to 50 channels).",
+                ephemeral=True,
             )
             return
 
         await interaction.response.defer(ephemeral=True)
 
-        staff_role = discord.utils.find(
-            lambda r: r.name.lower() == config.STAFF_ROLE_NAME.lower(),
-            guild.roles,
-        )
+        season_name = season.value
+        text_category_name = f"{season_name} {year}"
+        voice_category_name = f"{season_name} {year} VC"
 
-        created_count = 0
+        # 1. Locate or create Text category
+        text_category = discord.utils.find(lambda c: c.name == text_category_name, guild.categories)
+        if text_category is None:
+            text_category = await guild.create_category(
+                name=text_category_name,
+                reason=f"Quarterly setup for {text_category_name}",
+            )
 
-        # We partition teams into categories to respect Discord's 50-channels-per-category limit
-        for team_num in range(start_team, end_team + 1):
-            category_name = "IEEE QP Teams (1-14)" if team_num <= 14 else "IEEE QP Teams (15-28)"
-            category = discord.utils.find(lambda c: c.name == category_name, guild.categories)
-            if category is None:
-                category = await guild.create_category(
-                    name=category_name,
-                    reason="Auto-created team workspace category by QP Bot",
-                )
+        # 2. Locate or create Voice category
+        voice_category = discord.utils.find(lambda c: c.name == voice_category_name, guild.categories)
+        if voice_category is None:
+            voice_category = await guild.create_category(
+                name=voice_category_name,
+                reason=f"Quarterly setup for {voice_category_name}",
+            )
 
-            # Ensure Team role exists
+        # 3. Locate Leadership Roles (Mentor, QP Chair, Officer)
+        leadership_roles: List[discord.Role] = []
+        for role_name in config.STAFF_ROLES:
+            found = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), guild.roles)
+            if found:
+                leadership_roles.append(found)
+
+        created_text = 0
+        created_voice = 0
+
+        # 4. Generate channels for Teams 1 to num_teams
+        for team_num in range(1, num_teams + 1):
             role_name = f"Team {team_num}"
             team_role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), guild.roles)
             if team_role is None:
-                team_role = await guild.create_role(name=role_name, reason="Auto-created team role")
+                team_role = await guild.create_role(
+                    name=role_name,
+                    reason=f"Auto-created {role_name} for {season_name} {year}",
+                )
 
+            # Build permission overwrites for Text Channel
+            text_overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                team_role: discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    attach_files=True,
+                    embed_links=True,
+                ),
+                guild.me: discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    manage_channels=True,
+                    manage_messages=True,
+                ),
+            }
+            for leader_role in leadership_roles:
+                text_overwrites[leader_role] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    attach_files=True,
+                    embed_links=True,
+                    manage_messages=True,
+                )
+
+            # Check if text channel already exists in this category
             text_channel_name = f"team-{team_num}"
-            voice_channel_name = f"🔊 Team {team_num} Lab"
-
-            # Check if text channel already exists
             existing_text = discord.utils.find(
-                lambda c: c.name == text_channel_name and c.category_id == category.id,
+                lambda c: c.name == text_channel_name and c.category_id == text_category.id,
                 guild.text_channels,
             )
 
             if existing_text is None:
-                overwrites = {
-                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                    team_role: discord.PermissionOverwrite(
-                        view_channel=True,
-                        send_messages=True,
-                        read_message_history=True,
-                        attach_files=True,
-                        embed_links=True,
-                    ),
-                    guild.me: discord.PermissionOverwrite(
-                        view_channel=True,
-                        send_messages=True,
-                        manage_channels=True,
-                        manage_messages=True,
-                    ),
-                }
-                if staff_role:
-                    overwrites[staff_role] = discord.PermissionOverwrite(
-                        view_channel=True,
-                        send_messages=True,
-                        read_message_history=True,
-                        attach_files=True,
-                        embed_links=True,
-                        manage_messages=True,
-                    )
-
                 text_chan = await guild.create_text_channel(
                     name=text_channel_name,
-                    category=category,
-                    overwrites=overwrites,
-                    topic=f"Private workspace for {role_name}",
+                    category=text_category,
+                    overwrites=text_overwrites,
+                    topic=f"{season_name} {year} private workspace for Team {team_num}",
                 )
 
-                # Post welcome embed in text channel
                 embed = discord.Embed(
                     title=f"🚀 Welcome to your Team {team_num} Workspace!",
                     description=(
-                        f"This is the private channel for {team_role.mention} and the {config.STAFF_ROLE_NAME} team.\n\n"
-                        "• Use this space to coordinate, share schematics, code, and project files.\n"
-                        "• Check your remaining budget anytime with `/budget`.\n"
-                        "• Check lab parts in stock with `/inventory`."
+                        f"Welcome {team_role.mention} to **IEEE Quarterly Projects ({season_name} {year})**!\n\n"
+                        f"This private channel is accessible to your team and the **{', '.join(r.name for r in leadership_roles) or 'Leadership'}** staff.\n\n"
+                        "**Quick Commands:**\n"
+                        "• `/budget`: Check your remaining hardware budget ($55 base + $11/IEEE member).\n"
+                        "• `/inventory`: Browse parts and tools currently in stock in the IEEE Lab.\n"
+                        "• `/whereis`: Check where components are or which team borrowed them."
                     ),
                     color=discord.Color.blue(),
                 )
+                embed.set_footer(text=f"IEEE Quarterly Projects • {season_name} {year}")
                 await text_chan.send(embed=embed)
+                created_text += 1
 
-                # Create voice channel
+            # Build permission overwrites for Voice Channel
+            voice_channel_name = f"🔊 Team {team_num} Lab"
+            existing_voice = discord.utils.find(
+                lambda c: c.name == voice_channel_name and c.category_id == voice_category.id,
+                guild.voice_channels,
+            )
+
+            if existing_voice is None:
                 voice_overwrites = {
                     guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
                     team_role: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
                     guild.me: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, manage_channels=True),
                 }
-                if staff_role:
-                    voice_overwrites[staff_role] = discord.PermissionOverwrite(
+                for leader_role in leadership_roles:
+                    voice_overwrites[leader_role] = discord.PermissionOverwrite(
                         view_channel=True, connect=True, speak=True
                     )
 
                 await guild.create_voice_channel(
                     name=voice_channel_name,
-                    category=category,
+                    category=voice_category,
                     overwrites=voice_overwrites,
                 )
+                created_voice += 1
 
-                created_count += 1
-                await asyncio.sleep(0.5)  # Avoid rate limiting
+            await asyncio.sleep(0.3)  # Rate limit safety
 
+        leadership_names = ", ".join(r.name for r in leadership_roles) or "None configured"
         await interaction.followup.send(
-            f"✅ Successfully provisioned workspaces for **{created_count}** teams (Teams {start_team}–{end_team})!",
+            f"✅ **{season_name} {year} Setup Complete!**\n\n"
+            f"• **Text Category**: `{text_category_name}` ({created_text} text channels created)\n"
+            f"• **Voice Category**: `{voice_category_name}` ({created_voice} voice channels created)\n"
+            f"• **Access Granted To**: Respective `Team X` roles, plus `{leadership_names}`.",
             ephemeral=True,
         )
 
@@ -226,7 +268,7 @@ class TeamWorkspacesCog(commands.Cog):
 
         if loans:
             borrowed_text = "\n".join(
-                f"• {loan['quantity']}x **{loan['item_name']}** (<@{loan['borrower_id']}>)"
+                f"• {loan['quantity']}x **{loan['item_name']}** (<@{loan['borrower_id']}> on `{loan['borrowed_at']}`)"
                 for loan in loans
             )
         else:

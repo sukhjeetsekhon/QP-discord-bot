@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
+from typing import List
 import config
 import database
 from cogs.hardware_tickets import is_staff_or_admin
@@ -30,7 +31,7 @@ class MentorCardView(discord.ui.View):
     ):
         if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
             await interaction.response.send_message(
-                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role can claim mentor requests.",
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can claim help requests.",
                 ephemeral=True,
             )
             return
@@ -46,11 +47,11 @@ class MentorCardView(discord.ui.View):
 
         # Update embed
         embed = interaction.message.embeds[0]
-        embed.title = f"🟢 Mentor Request #{self.request_id} — In Progress"
+        embed.title = f"🟢 Help Request #{self.request_id} — In Progress"
         embed.color = discord.Color.gold()
         embed.add_field(
             name="Mentor Assisting",
-            value=f"{interaction.user.mention} is on their way!",
+            value=f"{interaction.user.mention} is assisting!",
             inline=False,
         )
 
@@ -61,7 +62,7 @@ class MentorCardView(discord.ui.View):
 
         await interaction.message.edit(embed=embed, view=self)
         await interaction.response.send_message(
-            f"🏃 **{interaction.user.mention}** claimed this request and is heading to **{req['location']}** for **Team {req['team_number']}**!",
+            f"🏃 **{interaction.user.mention}** claimed this request to help **Team {req['team_number']}**!",
         )
 
     @discord.ui.button(
@@ -76,7 +77,7 @@ class MentorCardView(discord.ui.View):
     ):
         if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
             await interaction.response.send_message(
-                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role can resolve mentor requests.",
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can resolve help requests.",
                 ephemeral=True,
             )
             return
@@ -84,7 +85,7 @@ class MentorCardView(discord.ui.View):
         database.resolve_mentor_request(self.request_id)
 
         embed = interaction.message.embeds[0]
-        embed.title = f"✅ Mentor Request #{self.request_id} — Resolved"
+        embed.title = f"✅ Help Request #{self.request_id} — Resolved"
         embed.color = discord.Color.green()
         embed.set_footer(text=f"Resolved by {interaction.user.display_name} at {datetime.now().strftime('%I:%M %p')}")
 
@@ -114,7 +115,7 @@ class MentorCardView(discord.ui.View):
 
         if not (is_staff or is_requester):
             await interaction.response.send_message(
-                "❌ Only the original requester or a QP Chair can cancel this request.",
+                "❌ Only the original requester or Leadership can cancel this request.",
                 ephemeral=True,
             )
             return
@@ -122,7 +123,7 @@ class MentorCardView(discord.ui.View):
         database.cancel_mentor_request(self.request_id)
 
         embed = interaction.message.embeds[0]
-        embed.title = f"❌ Mentor Request #{self.request_id} — Cancelled"
+        embed.title = f"❌ Help Request #{self.request_id} — Cancelled"
         embed.color = discord.Color.light_grey()
 
         for child in self.children:
@@ -133,7 +134,7 @@ class MentorCardView(discord.ui.View):
         self.stop()
 
 
-class MentorRequestModal(discord.ui.Modal, title="Call a Mentor / Help"):
+class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedback"):
     def __init__(self, default_team: str = ""):
         super().__init__()
         self.team_input = discord.ui.TextInput(
@@ -144,23 +145,15 @@ class MentorRequestModal(discord.ui.Modal, title="Call a Mentor / Help"):
             max_length=3,
             required=True,
         )
-        self.location_input = discord.ui.TextInput(
-            label="Lab Bench / Location",
-            placeholder="e.g. Bench 4, Soldering Station, 3D Printer Area",
-            min_length=2,
-            max_length=50,
-            required=True,
-        )
         self.issue_input = discord.ui.TextInput(
-            label="What do you need help with?",
-            placeholder="e.g. ESP32 I2C sensor communication failing, oscilloscope debugging, code compile error",
+            label="What do you need help or feedback with?",
+            placeholder="e.g. Need feedback on our power circuit schematic, or help debugging microcontroller I2C communication...",
             style=discord.TextStyle.paragraph,
             min_length=5,
-            max_length=400,
+            max_length=500,
             required=True,
         )
         self.add_item(self.team_input)
-        self.add_item(self.location_input)
         self.add_item(self.issue_input)
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -173,41 +166,45 @@ class MentorRequestModal(discord.ui.Modal, title="Call a Mentor / Help"):
             return
 
         team_num = int(raw_team)
-        location = self.location_input.value.strip()
         issue = self.issue_input.value.strip()
 
         req_id = database.create_mentor_request(
             team_number=team_num,
             requester_id=interaction.user.id,
-            location=location,
             description=issue,
+            location="Flexible / Remote",
         )
 
         guild = interaction.guild
-        staff_role = discord.utils.find(lambda r: r.name.lower() == config.STAFF_ROLE_NAME.lower(), guild.roles)
-        staff_mention = staff_role.mention if staff_role else f"@{config.STAFF_ROLE_NAME}"
+        staff_mentions: List[str] = []
+        if guild:
+            for role_name in config.STAFF_ROLES:
+                found = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), guild.roles)
+                if found:
+                    staff_mentions.append(found.mention)
+
+        mention_str = " ".join(staff_mentions) if staff_mentions else f"@{config.STAFF_ROLE_NAME}"
 
         embed = discord.Embed(
-            title=f"🟡 Mentor Request #{req_id} — Waiting for Mentor",
+            title=f"🟡 Help / Feedback Request #{req_id} — Waiting for Mentor",
             color=discord.Color.yellow(),
             timestamp=datetime.now(),
         )
         embed.add_field(name="Team", value=f"Team {team_num}", inline=True)
         embed.add_field(name="Requester", value=interaction.user.mention, inline=True)
-        embed.add_field(name="Location", value=f"📍 `{location}`", inline=True)
-        embed.add_field(name="Issue Description", value=issue, inline=False)
-        embed.set_footer(text="QP Chairs: Click 'Claim Request' when heading over")
+        embed.add_field(name="Topic / Request Description", value=issue, inline=False)
+        embed.set_footer(text="Mentors & Officers: Click 'Claim Request' to assist this team")
 
         view = MentorCardView(req_id)
         msg = await interaction.channel.send(
-            content=f"{staff_mention} — New help request for **Team {team_num}**!",
+            content=f"{mention_str} — New help request from **Team {team_num}**!",
             embed=embed,
             view=view,
         )
         database.set_mentor_request_message_id(req_id, msg.id)
 
         await interaction.response.send_message(
-            f"✅ Mentor request #{req_id} submitted! A mentor has been notified.",
+            f"✅ Help request #{req_id} submitted! Mentors have been notified.",
             ephemeral=True,
         )
 
@@ -218,7 +215,7 @@ class MentorQueueSetupView(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(
-        label="Request Mentor / Help",
+        label="Request Mentor Help / Feedback",
         style=discord.ButtonStyle.primary,
         custom_id="qp:mentor_request_btn",
         emoji="🙋",
@@ -239,29 +236,31 @@ class MentorQueueSetupView(discord.ui.View):
 
 
 class MentorQueueCog(commands.Cog):
-    """Cog for managing the lab mentor/help queue."""
+    """Cog for managing the mentor help and feedback queue."""
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     @app_commands.command(
         name="setup-mentor-queue",
-        description="Post the interactive 'Call a Mentor' panel in this channel (Admin only).",
+        description="Post the interactive 'Request Mentor' panel in this channel (Admin only).",
     )
     @app_commands.default_permissions(administrator=True)
     async def setup_mentor_queue(self, interaction: discord.Interaction):
         if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
             await interaction.response.send_message(
-                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role or Administrators can run this command.",
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can run this command.",
                 ephemeral=True,
             )
             return
 
         embed = discord.Embed(
-            title="🙋 IEEE QP Lab Mentor Queue",
+            title="🙋 IEEE QP Mentor Help & Feedback Queue",
             description=(
-                "Stuck on an issue in the lab? Need in-person help with debugging, circuits, code, or tools?\n\n"
-                "Click **Request Mentor / Help** below, specify your bench location, and a **QP Chair / Mentor** "
-                "will head over to assist your team!"
+                "Need help or feedback from a mentor? \n\n"
+                "• **Schematic & Hardware Reviews**: Get a second pair of eyes on your wiring, PCB, or components.\n"
+                "• **Debugging Assistance**: Stuck on embedded firmware, sensor buses (I2C/SPI), or code logic?\n"
+                "• **Project Guidance**: General questions on design, procurement, or manufacturing.\n\n"
+                "Click **Request Mentor Help / Feedback** below to submit your request!"
             ),
             color=discord.Color.gold(),
         )

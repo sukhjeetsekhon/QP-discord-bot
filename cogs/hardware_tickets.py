@@ -12,13 +12,13 @@ REQUEST_CHANNEL_PATTERN = re.compile(r"^request-(\d+)$", re.IGNORECASE)
 
 
 def is_staff_or_admin(member: discord.Member) -> bool:
-    """Check if a member has the QP Chair / Staff role or Administrator permissions."""
+    """Check if a member has Mentor, QP Chair, or Officer role, or Administrator permissions."""
     if member.guild_permissions.administrator:
         return True
-    return any(
-        role.name.lower() == config.STAFF_ROLE_NAME.lower()
-        for role in member.roles
-    )
+    staff_names = {r.lower() for r in config.STAFF_ROLES}
+    staff_names.add(config.STAFF_ROLE_NAME.lower())
+    return any(role.name.lower() in staff_names for role in member.roles)
+
 
 
 class TicketCloseConfirmView(discord.ui.View):
@@ -610,6 +610,131 @@ class HardwareTicketsCog(commands.Cog):
         embed.set_footer(text="IEEE Quarterly Projects • Finance Oversight")
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(
+        name="budget-adjust",
+        description="Add, subtract, or set a team's total budget allocation (QP Chair / Leadership only).",
+    )
+    @app_commands.describe(
+        team=f"Team number (1-{config.MAX_TEAMS})",
+        action="Action to perform (add, subtract, set)",
+        amount="Dollar amount in USD (e.g. 11.00 or 25.00)",
+        reason="Optional explanation for adjustment",
+    )
+    @app_commands.choices(
+        action=[
+            app_commands.Choice(name="Add to budget (+)", value="add"),
+            app_commands.Choice(name="Subtract from budget (-)", value="subtract"),
+            app_commands.Choice(name="Set exact total budget (=)", value="set"),
+        ]
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def budget_adjust(
+        self,
+        interaction: discord.Interaction,
+        team: int,
+        action: app_commands.Choice[str],
+        amount: float,
+        reason: Optional[str] = "Manual adjustment by leadership",
+    ):
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can adjust budgets.",
+                ephemeral=True,
+            )
+            return
+
+        if team < 1 or team > config.MAX_TEAMS:
+            await interaction.response.send_message(
+                f"❌ Team number must be between 1 and {config.MAX_TEAMS}.", ephemeral=True
+            )
+            return
+
+        if amount < 0:
+            await interaction.response.send_message(
+                "❌ Amount must be a positive number. Use the 'Subtract' action to reduce budget.",
+                ephemeral=True,
+            )
+            return
+
+        action_val = action.value
+        old_budget = database.get_team_budget(team)
+
+        if action_val == "add":
+            updated = database.adjust_team_budget(team, amount)
+            action_desc = f"Added **+${amount:.2f}** to budget"
+        elif action_val == "subtract":
+            updated = database.adjust_team_budget(team, -amount)
+            action_desc = f"Subtracted **-${amount:.2f}** from budget"
+        else:  # set
+            updated = database.set_team_budget(team, amount)
+            action_desc = f"Set total budget to **${amount:.2f}**"
+
+        embed = discord.Embed(
+            title=f"💵 Team {team} Budget Adjusted",
+            description=action_desc,
+            color=discord.Color.blue(),
+        )
+        embed.add_field(name="Previous Allocation", value=f"${old_budget['total_budget']:.2f}", inline=True)
+        embed.add_field(name="New Total Allocation", value=f"**${updated['total_budget']:.2f}**", inline=True)
+        embed.add_field(name="Remaining Balance", value=f"**${updated['remaining']:.2f}**", inline=True)
+        embed.add_field(name="Reason", value=reason, inline=False)
+        embed.set_footer(text=f"Adjusted by {interaction.user.display_name}")
+
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(
+        name="budget-ieee-bonus",
+        description="Apply $11 bonus per verified IEEE member for a team ($55 base + $11/member).",
+    )
+    @app_commands.describe(
+        team=f"Team number (1-{config.MAX_TEAMS})",
+        num_ieee_members="Number of verified IEEE members on this team",
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def budget_ieee_bonus(
+        self,
+        interaction: discord.Interaction,
+        team: int,
+        num_ieee_members: int,
+    ):
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can apply IEEE member bonuses.",
+                ephemeral=True,
+            )
+            return
+
+        if team < 1 or team > config.MAX_TEAMS:
+            await interaction.response.send_message(
+                f"❌ Team number must be between 1 and {config.MAX_TEAMS}.", ephemeral=True
+            )
+            return
+
+        if num_ieee_members < 0:
+            await interaction.response.send_message(
+                "❌ Number of IEEE members cannot be negative.", ephemeral=True
+            )
+            return
+
+        bonus_total = num_ieee_members * config.IEEE_MEMBER_BONUS
+        new_total = config.DEFAULT_TEAM_BUDGET + bonus_total
+        updated = database.set_team_budget(team, new_total)
+
+        embed = discord.Embed(
+            title=f"🎉 IEEE Member Budget Updated — Team {team}",
+            color=discord.Color.gold(),
+        )
+        embed.add_field(name="Verified IEEE Members", value=str(num_ieee_members), inline=True)
+        embed.add_field(name="Base Allocation", value=f"${config.DEFAULT_TEAM_BUDGET:.2f}", inline=True)
+        embed.add_field(name="IEEE Bonus Added", value=f"+${bonus_total:.2f} (${config.IEEE_MEMBER_BONUS:.2f}/ea)", inline=True)
+        embed.add_field(name="New Total Budget", value=f"**${updated['total_budget']:.2f}**", inline=True)
+        embed.add_field(name="Spent", value=f"${updated['spent']:.2f}", inline=True)
+        embed.add_field(name="Remaining", value=f"**${updated['remaining']:.2f}**", inline=True)
+        embed.set_footer(text=f"Verified & applied by {interaction.user.display_name}")
+
+        await interaction.response.send_message(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(HardwareTicketsCog(bot))
+

@@ -23,7 +23,7 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS team_budgets (
                 team_number INTEGER PRIMARY KEY,
-                total_budget REAL DEFAULT 50.0,
+                total_budget REAL DEFAULT 55.0,
                 spent REAL DEFAULT 0.0
             );
         """)
@@ -55,7 +55,7 @@ def init_db():
             );
         """)
 
-        # 4. Inventory Loans (Checkout / Return)
+        # 4. Inventory Loans (Checkout / Return with precise timestamps)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS inventory_loans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,19 +64,19 @@ def init_db():
                 borrower_id INTEGER,
                 quantity INTEGER DEFAULT 1,
                 status TEXT DEFAULT 'borrowed',
-                borrowed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                returned_at TIMESTAMP
+                borrowed_at TEXT,
+                returned_at TEXT
             );
         """)
 
-        # 5. Mentor Help Queue
+        # 5. Mentor Help Queue (Location optional)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mentor_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 message_id INTEGER,
                 team_number INTEGER,
                 requester_id INTEGER,
-                location TEXT,
+                location TEXT DEFAULT 'General Help',
                 description TEXT,
                 status TEXT DEFAULT 'waiting',
                 claimed_by_id INTEGER,
@@ -182,8 +182,8 @@ def get_all_budgets_summary() -> List[Dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-def set_team_budget(team_number: int, total_budget: float):
-    """Adjust a team's total budget allocation."""
+def set_team_budget(team_number: int, total_budget: float) -> Dict[str, Any]:
+    """Explicitly set a team's total budget allocation."""
     conn = get_db_connection()
     with conn:
         conn.execute("""
@@ -192,10 +192,30 @@ def set_team_budget(team_number: int, total_budget: float):
             ON CONFLICT(team_number) DO UPDATE SET total_budget = excluded.total_budget
         """, (team_number, total_budget))
     conn.close()
+    return get_team_budget(team_number)
+
+
+def adjust_team_budget(team_number: int, delta: float) -> Dict[str, Any]:
+    """Add or subtract an amount from a team's total budget."""
+    conn = get_db_connection()
+    with conn:
+        conn.execute("""
+            INSERT INTO team_budgets (team_number, total_budget, spent)
+            VALUES (?, ?, 0.0)
+            ON CONFLICT(team_number) DO UPDATE SET total_budget = total_budget + ?
+        """, (team_number, config.DEFAULT_TEAM_BUDGET + delta, delta))
+    conn.close()
+    return get_team_budget(team_number)
+
+
+def set_team_ieee_bonus(team_number: int, num_ieee_members: int) -> Dict[str, Any]:
+    """Set budget based on base $55 + ($11 * num_ieee_members)."""
+    new_total = config.DEFAULT_TEAM_BUDGET + (num_ieee_members * config.IEEE_MEMBER_BONUS)
+    return set_team_budget(team_number, new_total)
 
 
 # ==========================================
-# INVENTORY & LOANS FUNCTIONS
+# INVENTORY & LOANS FUNCTIONS (WITH TIMESTAMPS)
 # ==========================================
 
 def add_or_update_inventory_item(
@@ -260,10 +280,10 @@ def search_inventory(
 def get_inventory_item(item_id_or_name: str) -> Optional[Dict[str, Any]]:
     """Look up an inventory item by ID or exact name."""
     conn = get_db_connection()
-    if item_id_or_name.isdigit():
+    if str(item_id_or_name).isdigit():
         row = conn.execute("SELECT * FROM inventory_items WHERE id = ?", (int(item_id_or_name),)).fetchone()
     else:
-        row = conn.execute("SELECT * FROM inventory_items WHERE name = ?", (item_id_or_name.strip(),)).fetchone()
+        row = conn.execute("SELECT * FROM inventory_items WHERE name = ?", (str(item_id_or_name).strip(),)).fetchone()
     conn.close()
     return dict(row) if row else None
 
@@ -274,7 +294,7 @@ def checkout_inventory_item(
     borrower_id: int,
     quantity: int = 1,
 ) -> Tuple[bool, str]:
-    """Check out an inventory item to a team, decrementing available quantity."""
+    """Check out an inventory item to a team with a timestamp."""
     if quantity <= 0:
         return False, "Quantity must be greater than 0."
 
@@ -288,6 +308,7 @@ def checkout_inventory_item(
             f"Not enough stock: only **{item['available_qty']}** of **{item['name']}** available (requested {quantity})."
         )
 
+    now_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
     conn = get_db_connection()
     with conn:
         # Decrement available quantity
@@ -295,13 +316,13 @@ def checkout_inventory_item(
             "UPDATE inventory_items SET available_qty = available_qty - ? WHERE id = ?",
             (quantity, item["id"])
         )
-        # Record loan
+        # Record loan with exact timestamp
         conn.execute("""
-            INSERT INTO inventory_loans (item_id, team_number, borrower_id, quantity, status)
-            VALUES (?, ?, ?, ?, 'borrowed')
-        """, (item["id"], team_number, borrower_id, quantity))
+            INSERT INTO inventory_loans (item_id, team_number, borrower_id, quantity, status, borrowed_at)
+            VALUES (?, ?, ?, ?, 'borrowed', ?)
+        """, (item["id"], team_number, borrower_id, quantity, now_str))
     conn.close()
-    return True, f"Successfully checked out **{quantity}x {item['name']}** to **Team {team_number}**."
+    return True, f"Successfully checked out **{quantity}x {item['name']}** to **Team {team_number}** on `{now_str}`."
 
 
 def return_inventory_item(
@@ -309,7 +330,7 @@ def return_inventory_item(
     team_number: int,
     quantity: int = 1,
 ) -> Tuple[bool, str]:
-    """Return a checked-out item from a team, incrementing available quantity."""
+    """Return a checked-out item from a team with a timestamp."""
     if quantity <= 0:
         return False, "Quantity must be greater than 0."
 
@@ -321,7 +342,7 @@ def return_inventory_item(
     with conn:
         # Check active loans for this team and item
         loans = conn.execute("""
-            SELECT id, quantity FROM inventory_loans
+            SELECT id, quantity, borrowed_at FROM inventory_loans
             WHERE item_id = ? AND team_number = ? AND status = 'borrowed'
             ORDER BY id ASC
         """, (item["id"], team_number)).fetchall()
@@ -335,9 +356,9 @@ def return_inventory_item(
             conn.close()
             return False, f"Team {team_number} only has **{total_borrowed}** checked out, but you specified {quantity} to return."
 
-        # Mark loan(s) as returned
+        # Mark loan(s) as returned with timestamp
         remaining_to_return = quantity
-        now_str = datetime.now().isoformat()
+        now_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
         for loan in loans:
             loan_id = loan["id"]
             loan_qty = loan["quantity"]
@@ -354,9 +375,9 @@ def return_inventory_item(
                     (remaining_to_return, loan_id)
                 )
                 conn.execute("""
-                    INSERT INTO inventory_loans (item_id, team_number, borrower_id, quantity, status, returned_at)
-                    VALUES (?, ?, ?, ?, 'returned', ?)
-                """, (item["id"], team_number, 0, remaining_to_return, now_str))
+                    INSERT INTO inventory_loans (item_id, team_number, borrower_id, quantity, status, borrowed_at, returned_at)
+                    VALUES (?, ?, ?, ?, 'returned', ?, ?)
+                """, (item["id"], team_number, 0, remaining_to_return, loan["borrowed_at"], now_str))
                 remaining_to_return = 0
                 break
 
@@ -367,7 +388,7 @@ def return_inventory_item(
         )
 
     conn.close()
-    return True, f"Successfully returned **{quantity}x {item['name']}** from **Team {team_number}**."
+    return True, f"Successfully returned **{quantity}x {item['name']}** from **Team {team_number}** on `{now_str}`."
 
 
 def get_borrowed_items(team_number: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -385,23 +406,75 @@ def get_borrowed_items(team_number: Optional[int] = None) -> List[Dict[str, Any]
         sql += " AND l.team_number = ?"
         params.append(team_number)
 
-    sql += " ORDER BY l.team_number ASC, l.borrowed_at DESC"
+    sql += " ORDER BY l.team_number ASC, l.id DESC"
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_whereis_item(item_id_or_name: str) -> Optional[Dict[str, Any]]:
+    """Return complete location and distribution of an item: in lab vs borrowed by teams."""
+    item = get_inventory_item(item_id_or_name)
+    if not item:
+        return None
+
+    conn = get_db_connection()
+    active_loans = conn.execute("""
+        SELECT team_number, borrower_id, quantity, borrowed_at
+        FROM inventory_loans
+        WHERE item_id = ? AND status = 'borrowed'
+        ORDER BY team_number ASC
+    """, (item["id"],)).fetchall()
+    conn.close()
+
+    return {
+        "item": item,
+        "active_loans": [dict(l) for l in active_loans],
+    }
+
+
+def get_loan_history(
+    team_number: Optional[int] = None,
+    item_query: Optional[str] = None,
+    limit: int = 25,
+) -> List[Dict[str, Any]]:
+    """Retrieve full chronological history of checkouts and returns with timestamps."""
+    conn = get_db_connection()
+    sql = """
+        SELECT l.id, l.team_number, l.borrower_id, l.quantity, l.status, l.borrowed_at, l.returned_at,
+               i.name AS item_name, i.category
+        FROM inventory_loans l
+        JOIN inventory_items i ON l.item_id = i.id
+        WHERE 1=1
+    """
+    params = []
+    if team_number is not None:
+        sql += " AND l.team_number = ?"
+        params.append(team_number)
+
+    if item_query:
+        sql += " AND i.name LIKE ?"
+        params.append(f"%{item_query.strip()}%")
+
+    sql += " ORDER BY l.id DESC LIMIT ?"
+    params.append(limit)
+
     rows = conn.execute(sql, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 # ==========================================
-# MENTOR HELP QUEUE FUNCTIONS
+# MENTOR HELP QUEUE FUNCTIONS (FLEXIBLE)
 # ==========================================
 
 def create_mentor_request(
     team_number: int,
     requester_id: int,
-    location: str,
     description: str,
+    location: str = "Anywhere / Remote",
 ) -> int:
-    """Create a new mentor help ticket."""
+    """Create a new mentor help or feedback ticket."""
     conn = get_db_connection()
     with conn:
         cursor = conn.execute("""
@@ -438,7 +511,7 @@ def claim_mentor_request(request_id: int, mentor_id: int) -> bool:
 def resolve_mentor_request(request_id: int) -> bool:
     """Mark a mentor ticket as resolved."""
     conn = get_db_connection()
-    now_str = datetime.now().isoformat()
+    now_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
     with conn:
         cursor = conn.execute("""
             UPDATE mentor_requests
