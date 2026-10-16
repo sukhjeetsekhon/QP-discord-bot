@@ -159,7 +159,7 @@ class TeamWorkspacesCog(commands.Cog):
                 created_text += 1
 
             # Build permission overwrites for Voice Channel
-            voice_channel_name = f"🔊 Team {team_num} Lab"
+            voice_channel_name = f"Team {team_num} VC"
             existing_voice = discord.utils.find(
                 lambda c: c.name == voice_channel_name and c.category_id == voice_category.id,
                 guild.voice_channels,

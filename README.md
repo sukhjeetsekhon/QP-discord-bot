@@ -29,7 +29,7 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 ### 3. 📁 Automated Quarterly Team Workspaces (`<Season> <Year>` & `<Season> <Year> VC`)
 * Run `/setup-team-workspaces season: year: num_teams:` (e.g. `season:Fall year:2026 num_teams:28`) to automatically generate:
   * **Text Category**: e.g. `Fall 2026` containing `team-1` through `team-n`.
-  * **Voice Category**: e.g. `Fall 2026 VC` containing `🔊 Team 1 Lab` through `🔊 Team n Lab`.
+  * **Voice Category**: e.g. `Fall 2026 VC` containing `Team 1 VC` through `Team n VC`.
   * **Permissions**: Strictly locked to the respective `Team X` role, plus full access for **`Mentor`**, **`QP Chair`**, and **`Officer`** roles.
   * Completely abides by Discord's 50-channels-per-category limit and allows instant 1-click reconfiguration each quarter.
 * Commands:
@@ -120,3 +120,4 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 ## ☁️ Azure Cloud Hosting
 
 For instructions on deploying this bot to **Azure Container Apps (ACA)** to run 24/7 with zero maintenance, see our **[Azure Deployment Guide](docs/AZURE_DEPLOYMENT.md)**.
+
