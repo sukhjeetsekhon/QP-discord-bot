@@ -39,10 +39,19 @@ class TicketCloseConfirmView(discord.ui.View):
             )
             return
 
-        await interaction.response.send_message(
-            "⏳ Closing and deleting this channel in 5 seconds..."
-        )
+        # Dismiss the ephemeral confirmation prompt first
+        try:
+            await interaction.response.defer()
+            await interaction.delete_original_response()
+        except discord.HTTPException:
+            pass
+
         self.stop()
+
+        # Send public notice in the channel before deleting
+        if interaction.channel:
+            await interaction.channel.send("⏳ Closing and deleting this channel in 5 seconds...")
+
         await asyncio.sleep(5)
         try:
             if isinstance(interaction.channel, discord.TextChannel):
@@ -67,7 +76,16 @@ class TicketCloseConfirmView(discord.ui.View):
             )
             return
 
-        await interaction.message.delete()
+        # Acknowledge the interaction and delete the ephemeral confirmation message
+        try:
+            await interaction.response.defer()
+            await interaction.delete_original_response()
+        except discord.HTTPException:
+            try:
+                await interaction.edit_original_response(content="❌ Action cancelled.", view=None)
+            except discord.HTTPException:
+                pass
+
         self.stop()
 
 
