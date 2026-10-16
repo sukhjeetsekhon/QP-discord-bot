@@ -1,9 +1,11 @@
 import asyncio
 import re
+from typing import Optional
 import discord
 from discord import app_commands
 from discord.ext import commands
 import config
+import database
 from cogs.team_assignment import TEAM_ROLE_PATTERN
 
 REQUEST_CHANNEL_PATTERN = re.compile(r"^request-(\d+)$", re.IGNORECASE)
@@ -89,6 +91,99 @@ class TicketCloseConfirmView(discord.ui.View):
         self.stop()
 
 
+class ApproveHardwareModal(discord.ui.Modal, title="Approve Hardware Request"):
+    def __init__(self, default_team: str = ""):
+        super().__init__()
+        self.item_input = discord.ui.TextInput(
+            label="Item Name / Summary",
+            placeholder="e.g. ESP32-S3 Dev Board + OLED Display",
+            min_length=2,
+            max_length=100,
+            required=True,
+        )
+        self.cost_input = discord.ui.TextInput(
+            label="Approved Cost in USD ($)",
+            placeholder="e.g. 18.50",
+            min_length=1,
+            max_length=10,
+            required=True,
+        )
+        self.team_input = discord.ui.TextInput(
+            label=f"Team Number (1 - {config.MAX_TEAMS})",
+            placeholder="e.g. 14",
+            default=default_team,
+            min_length=1,
+            max_length=3,
+            required=True,
+        )
+        self.add_item(self.item_input)
+        self.add_item(self.cost_input)
+        self.add_item(self.team_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        raw_cost = self.cost_input.value.strip().replace("$", "")
+        try:
+            cost = float(raw_cost)
+            if cost <= 0:
+                raise ValueError()
+        except ValueError:
+            await interaction.response.send_message(
+                f"❌ Invalid cost amount `{self.cost_input.value}`. Please enter a positive dollar amount (e.g. 15.00).",
+                ephemeral=True,
+            )
+            return
+
+        raw_team = self.team_input.value.strip()
+        if not raw_team.isdigit() or int(raw_team) < 1 or int(raw_team) > config.MAX_TEAMS:
+            await interaction.response.send_message(
+                f"❌ Invalid team number `{raw_team}`. Must be between 1 and {config.MAX_TEAMS}.",
+                ephemeral=True,
+            )
+            return
+
+        team_num = int(raw_team)
+        item_name = self.item_input.value.strip()
+
+        # Check existing budget
+        budget = database.get_team_budget(team_num)
+        new_spent = budget["spent"] + cost
+        remaining = budget["total_budget"] - new_spent
+
+        # Record in database
+        database.add_hardware_purchase(
+            ticket_channel_id=interaction.channel_id,
+            team_number=team_num,
+            requester_id=interaction.user.id,
+            item_name=item_name,
+            cost=cost,
+            approved_by_id=interaction.user.id,
+        )
+
+        warning_note = ""
+        if remaining < 0:
+            warning_note = f"\n⚠️ **Budget Alert**: Team {team_num} is over budget by **${abs(remaining):.2f}**!"
+
+        embed = discord.Embed(
+            title="✅ Hardware Request Approved",
+            color=discord.Color.green(),
+        )
+        embed.add_field(name="Item Approved", value=item_name, inline=True)
+        embed.add_field(name="Approved Cost", value=f"${cost:.2f}", inline=True)
+        embed.add_field(
+            name=f"Team {team_num} Budget Summary",
+            value=(
+                f"• Allocation: **${budget['total_budget']:.2f}**\n"
+                f"• Total Spent: **${new_spent:.2f}**\n"
+                f"• Remaining: **${remaining:.2f}**{warning_note}"
+            ),
+            inline=False,
+        )
+        embed.set_footer(text=f"Approved by {interaction.user.display_name}")
+
+        await interaction.channel.send(embed=embed)
+        await interaction.response.send_message("✅ Request approved and recorded in budget!", ephemeral=True)
+
+
 class TicketControlView(discord.ui.View):
     """Persistent controls inside request-X channels for review & closure."""
     def __init__(self):
@@ -110,16 +205,14 @@ class TicketControlView(discord.ui.View):
             )
             return
 
-        embed = discord.Embed(
-            title="✅ Request Approved",
-            description=f"This hardware request was **approved** by {interaction.user.mention}.",
-            color=discord.Color.green(),
-        )
-        await interaction.channel.send(embed=embed)
-        await interaction.response.send_message(
-            "Status updated to **Approved**.",
-            ephemeral=True,
-        )
+        # Try to infer team number from channel topic or overwrites
+        default_team = ""
+        if isinstance(interaction.channel, discord.TextChannel) and interaction.channel.topic:
+            match = re.search(r"Team\s+(\d+)", interaction.channel.topic, re.IGNORECASE)
+            if match:
+                default_team = match.group(1)
+
+        await interaction.response.send_modal(ApproveHardwareModal(default_team=default_team))
 
     @discord.ui.button(
         label="Reject Request",
@@ -137,6 +230,8 @@ class TicketControlView(discord.ui.View):
             )
             return
 
+        database.update_purchase_status(interaction.channel_id, "rejected")
+
         embed = discord.Embed(
             title="❌ Request Rejected",
             description=f"This hardware request was **rejected** by {interaction.user.mention}.",
@@ -147,6 +242,61 @@ class TicketControlView(discord.ui.View):
             "Status updated to **Rejected**.",
             ephemeral=True,
         )
+
+    @discord.ui.button(
+        label="Mark Ordered",
+        style=discord.ButtonStyle.primary,
+        custom_id="qp:ticket_order_btn",
+        emoji="📦",
+    )
+    async def order_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role or Administrators can update order status.",
+                ephemeral=True,
+            )
+            return
+
+        database.update_purchase_status(interaction.channel_id, "ordered")
+
+        embed = discord.Embed(
+            title="📦 Order Placed",
+            description=f"The requested items have been ordered by {interaction.user.mention} and are on the way!",
+            color=discord.Color.blue(),
+        )
+        await interaction.channel.send(embed=embed)
+        await interaction.response.send_message("Status updated to **Ordered**.", ephemeral=True)
+
+    @discord.ui.button(
+        label="Mark Arrived",
+        style=discord.ButtonStyle.secondary,
+        custom_id="qp:ticket_arrived_btn",
+        emoji="📍",
+    )
+    async def arrived_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role or Administrators can update arrival status.",
+                ephemeral=True,
+            )
+            return
+
+        database.update_purchase_status(interaction.channel_id, "arrived")
+
+        embed = discord.Embed(
+            title="📍 Parts Arrived — Ready for Pickup!",
+            description=(
+                "Your hardware has arrived and is ready for pickup in the **IEEE Lab**!\n"
+                "Please coordinate with a QP Chair when picking up your components."
+            ),
+            color=discord.Color.purple(),
+        )
+        await interaction.channel.send(embed=embed)
+        await interaction.response.send_message("Status updated to **Arrived**.", ephemeral=True)
 
     @discord.ui.button(
         label="Close Ticket",
@@ -296,11 +446,16 @@ class TicketRequestView(discord.ui.View):
                 color=discord.Color.gold(),
             )
             if team_roles:
-                embed.add_field(
-                    name="Team",
-                    value=", ".join(r.name for r in team_roles),
-                    inline=True,
-                )
+                match = TEAM_ROLE_PATTERN.match(team_roles[0].name)
+                if match:
+                    team_num = int(match.group(1))
+                    b = database.get_team_budget(team_num)
+                    embed.add_field(
+                        name="Team Budget",
+                        value=f"• Remaining: **${b['remaining']:.2f} / ${b['total_budget']:.2f}**",
+                        inline=True,
+                    )
+
             embed.set_footer(text="QP Chair Review Panel • IEEE Quarterly Projects")
 
             controls = TicketControlView()
@@ -356,7 +511,105 @@ class HardwareTicketsCog(commands.Cog):
             ephemeral=True,
         )
 
+    @app_commands.command(
+        name="budget",
+        description="Check remaining hardware budget and purchase history for your team or any team.",
+    )
+    @app_commands.describe(team="Optional team number (1-28). Leave blank to check your own team.")
+    async def budget_cmd(self, interaction: discord.Interaction, team: Optional[int] = None):
+        member = interaction.user
+        if not isinstance(member, discord.Member):
+            await interaction.response.send_message("❌ Must be run in a server.", ephemeral=True)
+            return
+
+        # If team not provided, check user's team role
+        if team is None:
+            team_roles = [r for r in member.roles if TEAM_ROLE_PATTERN.match(r.name)]
+            if team_roles:
+                match = TEAM_ROLE_PATTERN.match(team_roles[0].name)
+                team = int(match.group(1))
+            else:
+                await interaction.response.send_message(
+                    "❌ You are not assigned to a team yet! Please specify a team number (e.g. `/budget team:14`).",
+                    ephemeral=True,
+                )
+                return
+
+        if team < 1 or team > config.MAX_TEAMS:
+            await interaction.response.send_message(
+                f"❌ Team number must be between 1 and {config.MAX_TEAMS}.", ephemeral=True
+            )
+            return
+
+        b = database.get_team_budget(team)
+        embed = discord.Embed(
+            title=f"💰 Team {team} Hardware Budget",
+            color=discord.Color.green() if b["remaining"] >= 0 else discord.Color.red(),
+        )
+        embed.add_field(name="Total Allocation", value=f"${b['total_budget']:.2f}", inline=True)
+        embed.add_field(name="Total Spent", value=f"${b['spent']:.2f}", inline=True)
+        embed.add_field(name="Remaining Balance", value=f"${b['remaining']:.2f}", inline=True)
+
+        if b["purchases"]:
+            history = []
+            for p in b["purchases"][:10]:
+                status_emoji = {"approved": "✅", "ordered": "📦", "arrived": "📍", "rejected": "❌"}.get(p["status"], "•")
+                date_str = p["created_at"][:10] if p["created_at"] else ""
+                history.append(f"{status_emoji} **${p['cost']:.2f}** — {p['item_name']} *({p['status'].title()}, {date_str})*")
+            embed.add_field(name="Recent Approved Purchases", value="\n".join(history), inline=False)
+        else:
+            embed.add_field(name="Purchases", value="No hardware purchases approved yet.", inline=False)
+
+        embed.set_footer(text="IEEE Quarterly Projects • Budget Tracking")
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(
+        name="budget-summary",
+        description="View an overview of all 28 teams' budgets and program spending (QP Chair only).",
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def budget_summary(self, interaction: discord.Interaction):
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only members with the **{config.STAFF_ROLE_NAME}** role or Administrators can view budget summaries.",
+                ephemeral=True,
+            )
+            return
+
+        summary = database.get_all_budgets_summary()
+        total_allocated = sum(r["total_budget"] for r in summary)
+        total_spent = sum(r["spent"] for r in summary)
+        total_remaining = total_allocated - total_spent
+
+        embed = discord.Embed(
+            title="📊 IEEE QP Master Budget Summary",
+            description=(
+                f"• Total Program Budget: **${total_allocated:.2f}**\n"
+                f"• Total Spent Across All Teams: **${total_spent:.2f}**\n"
+                f"• Total Remaining: **${total_remaining:.2f}**\n\n"
+                "**Team Breakdown:**"
+            ),
+            color=discord.Color.blue(),
+        )
+
+        lines = []
+        for r in summary:
+            status_indicator = "🔴" if r["remaining"] < 0 else ("🟡" if r["spent"] > 0 else "⚪")
+            lines.append(f"{status_indicator} **Team {r['team_number']}**: Spent ${r['spent']:.2f} | Left **${r['remaining']:.2f}**")
+
+        # Split into fields if necessary
+        chunk_size = 14
+        for i in range(0, len(lines), chunk_size):
+            chunk = lines[i:i + chunk_size]
+            embed.add_field(
+                name=f"Teams {i + 1}–{min(i + chunk_size, len(lines))}",
+                value="\n".join(chunk),
+                inline=True,
+            )
+
+        embed.set_footer(text="IEEE Quarterly Projects • Finance Oversight")
+        await interaction.response.send_message(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(HardwareTicketsCog(bot))
-

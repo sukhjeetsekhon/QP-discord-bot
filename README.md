@@ -7,51 +7,61 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 ## ✨ Features
 
 ### 1. 👥 Team Role Assignment
-* Run `/setup-team-roles` to post an interactive embed with a **"Join Team"** button in `#team-assignment`.
-* Clicking the button opens a modal prompt where members enter their team number (1–28).
-* **Validation & Auto-Creation**: Checks that the team number is within range. If the role `Team <N>` does not already exist on the server, the bot creates it automatically.
-* **Single-Team Exclusivity**: If a member changes teams, any existing `Team <N>` role is removed before assigning the new one.
-* **Persistent Button**: Survives bot restarts without needing to repost the embed.
+* Run `/setup-team-roles` in `#team-assignment` to post an interactive panel with a **"Join Team"** button.
+* Prompts members to enter their team number (1–28).
+* **Validation & Auto-Creation**: Checks range and automatically creates `Team <N>` if missing on the server.
+* **Single-Team Rule**: Automatically removes any previous team roles when joining a new team.
 
-### 2. 🛠️ Hardware Request Ticket System
-* Run `/setup-tickets` to post an interactive embed with a **"Request"** button in your hardware channel.
-* Clicking the button automatically creates a private temporary ticket channel named `request-1`, `request-2`, etc.
-* **Dynamic Sequential Numbering**: Calculates the next number based on existing `request-X` channels.
-* **Smart Access Control**:
-  * Private channel organized under the **"Hardware Requests"** category (auto-created if missing).
-  * Accessible only to the **requester**, their **teammates** (if they hold a `Team <N>` role), and members with the **"QP Chair"** role (or server administrators).
-  * `@everyone` cannot view the channel.
-* **Review Controls Inside Ticket**:
-  * Pings the requester and `@QP Chair` with instructions on what details to provide (item name, product link, cost, justification).
-  * Staff control buttons:
-    * **Approve Request** (marks request as approved)
-    * **Reject Request** (marks request as rejected)
-    * **Close Ticket** (prompts confirmation and deletes the temporary channel)
+### 2. 🛠️ Hardware Request Tickets & Budget Tracking ($50 / Team)
+* Run `/setup-tickets` to post an embed with a **"Request"** button.
+* Creates private sequential ticket channels (`request-1`, `request-2`, etc.) under the `"Hardware Requests"` category.
+* Accessible to the requester, their teammates, and `@QP Chair` / Admins.
+* **$50 Budget Tracking**:
+  * Approving requests opens a modal to specify the item name and approved amount.
+  * Checks remaining team balance out of their $50 allocation and warns if over budget.
+  * Status buttons: **Approve Request**, **Reject Request**, **Mark Ordered 📦**, **Mark Arrived 📍**, and **Close Ticket 🔒**.
+* Commands:
+  * `/budget [team]`: Check remaining balance and approved purchase history.
+  * `/budget-summary`: Overview of all 28 teams' budgets and program spending (QP Chair only).
+
+### 3. 📁 Automated Team Workspaces & Directory
+* Run `/setup-team-workspaces` to auto-generate private text (`#team-X`) and voice (`🔊 Team X Lab`) channels for all 28 teams.
+* Automatically splits into `IEEE QP Teams (1-14)` and `IEEE QP Teams (15-28)` to comply with Discord category limits.
+* Commands:
+  * `/my-team`: Check your team roster, remaining budget, borrowed lab equipment, and private channel link.
+  * `/team-info team:<number>`: View directory status for any team.
+
+### 4. 🙋 Lab Mentorship / "Call a Mentor" Queue
+* Run `/setup-mentor-queue` to post a persistent **"Request Mentor / Help"** button.
+* Students enter their team number, lab bench/location, and problem description.
+* Notifies QP Chairs in real-time with action buttons:
+  * **Claim Request 🏃**: Notifies the team that a mentor is heading over to their bench.
+  * **Mark Resolved ✅**: Marks the ticket resolved and logs time.
+  * **Cancel ❌**: Cancels the request.
+
+### 5. 📦 Lab Inventory & Equipment Borrowing System
+* Search and track parts available in the IEEE room drawer/cabinets.
+* Track which teams borrowed what components and when.
+* Commands:
+  * `/inventory [search] [category]`: Search available parts in stock and their physical location in the lab.
+  * `/inventory-add name: category: quantity: location:`: Add or restock components (QP Chair only).
+  * `/checkout team: item: quantity: [member]`: Check out tools or components to a team.
+  * `/return team: item: quantity:`: Return borrowed components back to lab stock.
+  * `/borrowed [team]`: View all equipment currently checked out by a specific team or across all teams.
 
 ---
 
 ## 🚀 Setup & Installation
 
 ### 1. Discord Developer Portal Setup
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and create a New Application.
-2. Under the **Bot** tab:
-   * Reset/Copy your **Bot Token**.
-   * Under **Privileged Gateway Intents**, enable:
-     * **Server Members Intent** (required to view and assign roles).
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and open your Application.
+2. Under **Bot**:
+   * Enable **Server Members Intent** under Privileged Gateway Intents.
 3. Under **OAuth2 > URL Generator**:
    * Scopes: `bot`, `applications.commands`
-   * Bot Permissions:
-     * `Manage Roles`
-     * `Manage Channels`
-     * `View Channels`
-     * `Send Messages`
-     * `Embed Links`
-     * `Attach Files`
-     * `Read Message History`
-     * `Use Slash Commands`
-   * Copy the generated URL and invite the bot to your server.
-4. **Important Server Role Hierarchy**:
-   * In your Discord Server Settings > Roles, ensure the **bot's role is positioned ABOVE the `Team` roles** and the `QP Chair` role so Discord allows the bot to assign and manage them.
+   * Permissions: `Manage Roles`, `Manage Channels`, `View Channels`, `Send Messages`, `Embed Links`, `Attach Files`, `Read Message History`, `Use Slash Commands`.
+4. **Server Role Hierarchy**:
+   * In your Discord Server Settings > Roles, ensure the **bot's role is positioned ABOVE the `Team` roles** and the `QP Chair` role.
 
 ---
 
@@ -59,62 +69,47 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/QP-discord-bot.git
+   git clone https://github.com/sukhjeetsekhon/QP-discord-bot.git
    cd QP-discord-bot
    ```
 
-2. **Create a virtual environment** (optional but recommended):
+2. **Set up virtual environment & install dependencies**:
    ```bash
    python -m venv .venv
-   # Windows:
-   .venv\Scripts\activate
-   # Linux/macOS:
-   source .venv/bin/activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
+   .venv\Scripts\activate   # Windows
    pip install -r requirements.txt
    ```
 
-4. **Configure environment variables**:
-   * Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   * Open `.env` and fill in your values:
-     ```env
-     DISCORD_TOKEN=your_bot_token_here
-     MAX_TEAMS=28
-     STAFF_ROLE_NAME=QP Chair
-     TICKETS_CATEGORY_NAME=Hardware Requests
+3. **Configure `.env`**:
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your variables:
+   ```env
+   DISCORD_TOKEN=your_token_here
+   MAX_TEAMS=28
+   DEFAULT_TEAM_BUDGET=50.00
+   STAFF_ROLE_NAME=QP Chair
+   TICKETS_CATEGORY_NAME=Hardware Requests
+   DB_PATH=data/qp_bot.db
+   ```
 
-     # Optional: your server ID for instant slash command testing
-     # GUILD_ID=123456789012345678
-     ```
-
----
-
-## 🏃 Running the Bot
-
-Start the bot with:
-
-```bash
-python bot.py
-```
+4. **Run the bot**:
+   ```bash
+   python bot.py
+   ```
 
 ---
 
-## 🛠️ Admin Commands
+## 🛠️ Admin Setup Commands
 
-Both commands require **Administrator** permissions in the server:
-
-* `/setup-team-roles`: Run in `#team-assignment` to post the interactive role selection panel.
-* `/setup-tickets`: Run in your hardware announcements or requests channel to post the ticket creation panel.
+* `/setup-team-roles`: Post the team role selection panel in `#team-assignment`.
+* `/setup-tickets`: Post the hardware request button in your procurement channel.
+* `/setup-team-workspaces`: Auto-provision private channels for all teams.
+* `/setup-mentor-queue`: Post the in-person help queue button in `#mentor-help`.
 
 ---
 
 ## ☁️ Azure Cloud Hosting
 
 For instructions on deploying this bot to **Azure Container Apps (ACA)** to run 24/7 with zero maintenance, see our **[Azure Deployment Guide](docs/AZURE_DEPLOYMENT.md)**.
-

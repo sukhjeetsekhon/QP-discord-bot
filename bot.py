@@ -3,8 +3,10 @@ import sys
 import discord
 from discord.ext import commands
 import config
+import database
 from cogs.team_assignment import TeamAssignmentView
 from cogs.hardware_tickets import TicketRequestView, TicketControlView
+from cogs.mentor_queue import MentorQueueSetupView
 
 # Configure required Discord intents
 intents = discord.Intents.default()
@@ -22,15 +24,26 @@ class QPBot(commands.Bot):
 
     async def setup_hook(self):
         """Executed before the bot starts accepting events."""
-        # Register persistent UI views so buttons work across restarts
+        # 1. Initialize SQLite database
+        try:
+            database.init_db()
+            print("📦 SQLite Database initialized successfully.")
+        except Exception as e:
+            print(f"❌ Failed to initialize database: {e}", file=sys.stderr)
+
+        # 2. Register persistent UI views so buttons work across restarts
         self.add_view(TeamAssignmentView())
         self.add_view(TicketRequestView())
         self.add_view(TicketControlView())
+        self.add_view(MentorQueueSetupView())
 
-        # Load extension cogs
+        # 3. Load extension cogs
         initial_extensions = [
             "cogs.team_assignment",
             "cogs.hardware_tickets",
+            "cogs.team_workspaces",
+            "cogs.mentor_queue",
+            "cogs.inventory",
         ]
         for ext in initial_extensions:
             try:
@@ -39,7 +52,7 @@ class QPBot(commands.Bot):
             except Exception as e:
                 print(f"❌ Failed to load extension {ext}: {e}", file=sys.stderr)
 
-        # Sync slash commands
+        # 4. Sync slash commands
         try:
             if config.GUILD_ID:
                 guild_obj = discord.Object(id=config.GUILD_ID)
@@ -53,13 +66,15 @@ class QPBot(commands.Bot):
             print(f"⚠️ Slash command sync error: {e}", file=sys.stderr)
 
     async def on_ready(self):
-        print("=" * 50)
+        print("=" * 55)
         print(f"🤖 QP Discord Bot logged in as: {self.user} (ID: {self.user.id})")
         print(f" Connected to {len(self.guilds)} server(s)")
         print(f" Max Teams: {config.MAX_TEAMS}")
+        print(f" Team Budget Allocation: ${config.DEFAULT_TEAM_BUDGET:.2f}")
         print(f" Staff Role: {config.STAFF_ROLE_NAME}")
         print(f" Tickets Category: {config.TICKETS_CATEGORY_NAME}")
-        print("=" * 50)
+        print(f" Database Path: {config.DB_PATH}")
+        print("=" * 55)
 
 
 async def main():
@@ -81,4 +96,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n👋 Bot shut down cleanly.")
-
