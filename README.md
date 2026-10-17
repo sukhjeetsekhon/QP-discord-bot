@@ -119,5 +119,10 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 
 ## ☁️ Azure Cloud Hosting
 
-For instructions on deploying this bot to **Azure Container Apps (ACA)** to run 24/7 with zero maintenance, see our **[Azure Deployment Guide](docs/AZURE_DEPLOYMENT.md)**.
+For instructions on deploying and updating this bot on **Azure Container Apps (ACA)** to run 24/7, see our **[Azure Deployment Guide](docs/AZURE_DEPLOYMENT.md)**.
+
+> **💡 Quick Tip on Updating Azure Revisions:**
+> Whenever new code is pushed to `main`, GitHub Actions automatically builds the image with the commit SHA (e.g. `ghcr.io/<user>/qp-discord-bot:<commit-sha>`).
+> To deploy the update, go to your Container App in Azure > **App** > **Containers** > **Edit and deploy**, update the image tag with the commit SHA, and click **Create**!
+
 

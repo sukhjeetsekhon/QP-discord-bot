@@ -91,30 +91,64 @@ az containerapp create \
 
 ---
 
+## 🔄 How to Update the Bot (Deploying New Code / Revisions)
+
+Whenever you make changes to the code and push to `main`, GitHub Actions automatically builds a new container image and pushes it to GitHub Packages (`ghcr.io`).
+
+Because simplified Azure Container App setups run in an **Express Environment**, Azure will show an error (`'SourceControl' resources are not supported on express environments`) if you try to use the *Deployment > Continuous deployment* tab.
+
+### The Standard 30-Second Update Process:
+
+1. **Find the Latest Commit ID**:
+   * Look at your latest commit on GitHub (or run `git log -1 --format="%H"` locally).
+   * Your new image tag is:
+     ```text
+     ghcr.io/<your-github-username>/qp-discord-bot:<commit-sha>
+     ```
+   *(Using the commit SHA instead of `:latest` prevents Azure from using a cached copy).*
+
+2. **Deploy the Revision in Azure**:
+   * In the [Azure Portal](https://portal.azure.com/), open your `qp-discord-bot` Container App.
+   * In the left sidebar under **Application** (or **App**), click **Containers**.
+   * At the top of the page, click **Edit and deploy**.
+   * Click on your container row (`qp-discord-bot`) to open the container configuration drawer on the right.
+   * Under **Image and tag**, update the field with your new tag:
+     ```text
+     ghcr.io/<your-github-username>/qp-discord-bot:<commit-sha>
+     ```
+   * Click **Save** at the bottom of the drawer.
+   * Click **Create** at the bottom of the page.
+
+Azure will immediately spin up a new active revision running your latest code!
+
+3. **Refresh Discord**:
+   * Click inside your Discord desktop app and press **`Ctrl + R`** to refresh the Discord UI so any newly registered slash commands show up immediately.
+
+---
+
 ## 📊 Viewing Bot Logs in Azure
 
 To check that your bot is running and view live logs:
 1. In the Azure Portal, open your `qp-discord-bot` Container App.
 2. In the left navigation bar under **Monitoring**, click **Log stream**.
-3. You will see the bot login output:
-   ```
+3. Select **Console** at the top.
+4. You will see:
+   ```text
+   📦 SQLite Database initialized successfully.
+    Loaded extension: cogs.team_assignment
+    Loaded extension: cogs.hardware_tickets
+    Loaded extension: cogs.team_workspaces
+    Loaded extension: cogs.mentor_queue
+    Loaded extension: cogs.inventory
+   🌐 Synced 10 global slash commands.
    ==================================================
    🤖 QP Discord Bot logged in as: QP Bot#1234
     Connected to 1 server(s)
     Max Teams: 28
+    Team Budget Allocation: $55.00
     Staff Role: QP Chair
     Tickets Category: Hardware Requests
    ==================================================
    ```
 
----
-
-## 🔄 Automated CI/CD with GitHub Actions
-
-The repository includes [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
-
-Every time you push code to `main`:
-1. GitHub Actions builds the Docker image.
-2. It pushes the image to GitHub Packages (`ghcr.io`).
-3. You can configure Azure credentials in your repository's GitHub Secrets to automatically roll out updates to Azure!
 
