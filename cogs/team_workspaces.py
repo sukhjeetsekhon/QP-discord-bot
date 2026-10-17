@@ -148,7 +148,7 @@ class TeamWorkspacesCog(commands.Cog):
                         f"Welcome {team_role.mention} to **IEEE Quarterly Projects ({season_name} {year})**!\n\n"
                         f"This private channel is accessible to your team and the **{', '.join(r.name for r in leadership_roles) or 'Leadership'}** staff.\n\n"
                         "**Quick Commands:**\n"
-                        "• `/budget`: Check your remaining hardware budget ($55 base + $11/IEEE member).\n"
+                        "• `/budget`: Check your remaining hardware budget ($50 base + $11/IEEE member).\n"
                         "• `/inventory`: Browse parts and tools currently in stock in the IEEE Lab.\n"
                         "• `/whereis`: Check where components are or which team borrowed them."
                     ),

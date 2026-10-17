@@ -612,12 +612,13 @@ class HardwareTicketsCog(commands.Cog):
 
     @app_commands.command(
         name="budget-adjust",
-        description="Add, subtract, or set a team's total budget allocation (QP Chair / Leadership only).",
+        description="Add, subtract, or set budget for a specific team OR all teams at once (Leadership only).",
     )
     @app_commands.describe(
-        team=f"Team number (1-{config.MAX_TEAMS})",
         action="Action to perform (add, subtract, set)",
-        amount="Dollar amount in USD (e.g. 11.00 or 25.00)",
+        amount="Dollar amount in USD (e.g. 10.00 or 50.00)",
+        team=f"Specific team number (1-{config.MAX_TEAMS}). Leave blank to apply to ALL teams.",
+        all_teams="Set to True to apply this adjustment to ALL teams at once",
         reason="Optional explanation for adjustment",
     )
     @app_commands.choices(
@@ -631,21 +632,16 @@ class HardwareTicketsCog(commands.Cog):
     async def budget_adjust(
         self,
         interaction: discord.Interaction,
-        team: int,
         action: app_commands.Choice[str],
         amount: float,
-        reason: Optional[str] = "Manual adjustment by leadership",
+        team: Optional[int] = None,
+        all_teams: bool = False,
+        reason: Optional[str] = "Adjustment by leadership",
     ):
         if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
             await interaction.response.send_message(
                 f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can adjust budgets.",
                 ephemeral=True,
-            )
-            return
-
-        if team < 1 or team > config.MAX_TEAMS:
-            await interaction.response.send_message(
-                f"❌ Team number must be between 1 and {config.MAX_TEAMS}.", ephemeral=True
             )
             return
 
@@ -657,6 +653,39 @@ class HardwareTicketsCog(commands.Cog):
             return
 
         action_val = action.value
+
+        # Apply to ALL teams
+        if all_teams or team is None:
+            if action_val == "add":
+                summary = database.adjust_all_teams_budget(amount)
+                action_desc = f"Added **+${amount:.2f}** to all {config.MAX_TEAMS} teams"
+            elif action_val == "subtract":
+                summary = database.adjust_all_teams_budget(-amount)
+                action_desc = f"Subtracted **-${amount:.2f}** from all {config.MAX_TEAMS} teams"
+            else:  # set
+                summary = database.set_all_teams_budget(amount)
+                action_desc = f"Set total budget to **${amount:.2f}** for all {config.MAX_TEAMS} teams"
+
+            total_allocated = sum(r["total_budget"] for r in summary)
+            total_remaining = sum(r["remaining"] for r in summary)
+
+            embed = discord.Embed(
+                title=f"💵 All Team Budgets Adjusted (Teams 1–{config.MAX_TEAMS})",
+                description=f"{action_desc}\n\n• **New Total Program Allocation**: ${total_allocated:.2f}\n• **Total Remaining**: ${total_remaining:.2f}",
+                color=discord.Color.blue(),
+            )
+            embed.add_field(name="Reason", value=reason, inline=False)
+            embed.set_footer(text=f"Bulk adjusted by {interaction.user.display_name}")
+            await interaction.response.send_message(embed=embed)
+            return
+
+        # Apply to specific team
+        if team < 1 or team > config.MAX_TEAMS:
+            await interaction.response.send_message(
+                f"❌ Team number must be between 1 and {config.MAX_TEAMS}.", ephemeral=True
+            )
+            return
+
         old_budget = database.get_team_budget(team)
 
         if action_val == "add":
@@ -684,7 +713,7 @@ class HardwareTicketsCog(commands.Cog):
 
     @app_commands.command(
         name="budget-ieee-bonus",
-        description="Apply $11 bonus per verified IEEE member for a team ($55 base + $11/member).",
+        description="Apply $11 bonus per verified IEEE member for a team ($50 base + $11/member).",
     )
     @app_commands.describe(
         team=f"Team number (1-{config.MAX_TEAMS})",

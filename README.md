@@ -12,7 +12,7 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 * **Validation & Auto-Creation**: Checks range and automatically creates `Team <N>` if missing on the server.
 * **Single-Team Rule**: Automatically removes any previous team roles when joining a new team.
 
-### 2. 🛠️ Hardware Request Tickets & Budget Tracking ($55 Base + $11/IEEE Member)
+### 2. 🛠️ Hardware Request Tickets & Budget Tracking ($50 Base + $11/IEEE Member)
 * Run `/setup-tickets` to post an embed with a **"Request"** button.
 * Creates private sequential ticket channels (`request-1`, `request-2`, etc.) under the `"Hardware Requests"` category.
 * Accessible to the requester, their teammates, and `@QP Chair` / `@Mentor` / `@Officer` roles.
@@ -22,8 +22,8 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * Status buttons: **Approve Request**, **Reject Request**, **Mark Ordered 📦**, **Mark Arrived 📍**, and **Close Ticket 🔒**.
 * Commands:
   * `/budget [team]`: Check remaining balance, total spent, and purchase history.
-  * `/budget-adjust team: action: amount: [reason:]`: Add (`+`), subtract (`-`), or set (`=`) a team's budget (Leadership only).
-  * `/budget-ieee-bonus team: num_ieee_members:`: Automatically calculates and sets budget with **$55 base + $11 per verified IEEE member** (Leadership only).
+  * `/budget-adjust action: amount: [team:] [all_teams:] [reason:]`: Add (`+`), subtract (`-`), or set (`=`) budget for an individual team **OR all teams at once** (Leadership only).
+  * `/budget-ieee-bonus team: num_ieee_members:`: Automatically calculates and sets budget with **$50 base + $11 per verified IEEE member** (Leadership only).
   * `/budget-summary`: Overview of all teams' budgets, total program spending, and remaining funds (Leadership only).
 
 ### 3. 📁 Automated Quarterly Team Workspaces (`<Season> <Year>` & `<Season> <Year> VC`)

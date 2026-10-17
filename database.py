@@ -23,7 +23,7 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS team_budgets (
                 team_number INTEGER PRIMARY KEY,
-                total_budget REAL DEFAULT 55.0,
+                total_budget REAL DEFAULT 50.0,
                 spent REAL DEFAULT 0.0
             );
         """)
@@ -208,10 +208,39 @@ def adjust_team_budget(team_number: int, delta: float) -> Dict[str, Any]:
     return get_team_budget(team_number)
 
 
+def adjust_all_teams_budget(delta: float) -> List[Dict[str, Any]]:
+    """Add or subtract delta from all teams' total budgets."""
+    conn = get_db_connection()
+    with conn:
+        for t in range(1, config.MAX_TEAMS + 1):
+            conn.execute("""
+                INSERT INTO team_budgets (team_number, total_budget, spent)
+                VALUES (?, ?, 0.0)
+                ON CONFLICT(team_number) DO UPDATE SET total_budget = total_budget + ?
+            """, (t, config.DEFAULT_TEAM_BUDGET + delta, delta))
+    conn.close()
+    return get_all_budgets_summary()
+
+
+def set_all_teams_budget(total_budget: float) -> List[Dict[str, Any]]:
+    """Set total budget for all teams."""
+    conn = get_db_connection()
+    with conn:
+        for t in range(1, config.MAX_TEAMS + 1):
+            conn.execute("""
+                INSERT INTO team_budgets (team_number, total_budget, spent)
+                VALUES (?, ?, 0.0)
+                ON CONFLICT(team_number) DO UPDATE SET total_budget = excluded.total_budget
+            """, (t, total_budget))
+    conn.close()
+    return get_all_budgets_summary()
+
+
 def set_team_ieee_bonus(team_number: int, num_ieee_members: int) -> Dict[str, Any]:
-    """Set budget based on base $55 + ($11 * num_ieee_members)."""
+    """Set budget based on base $50 + ($11 * num_ieee_members)."""
     new_total = config.DEFAULT_TEAM_BUDGET + (num_ieee_members * config.IEEE_MEMBER_BONUS)
     return set_team_budget(team_number, new_total)
+
 
 
 # ==========================================
