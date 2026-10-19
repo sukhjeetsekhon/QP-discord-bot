@@ -147,7 +147,7 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
         )
         self.issue_input = discord.ui.TextInput(
             label="What do you need help or feedback with?",
-            placeholder="e.g. Need feedback on our power circuit schematic, or help debugging microcontroller I2C communication...",
+            placeholder="e.g. Need feedback on power circuit, or help debugging microcontroller I2C communication",
             style=discord.TextStyle.paragraph,
             min_length=5,
             max_length=500,
@@ -157,9 +157,11 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
         self.add_item(self.issue_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         raw_team = self.team_input.value.strip()
         if not raw_team.isdigit() or int(raw_team) < 1 or int(raw_team) > config.MAX_TEAMS:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ Invalid team number. Please enter a number between 1 and {config.MAX_TEAMS}.",
                 ephemeral=True,
             )
@@ -203,7 +205,7 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
         )
         database.set_mentor_request_message_id(req_id, msg.id)
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"✅ Help request #{req_id} submitted! Mentors have been notified.",
             ephemeral=True,
         )
@@ -223,16 +225,20 @@ class MentorQueueSetupView(discord.ui.View):
     async def request_mentor_button(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        member = interaction.user
-        default_team = ""
-        if isinstance(member, discord.Member):
-            for role in member.roles:
-                match = TEAM_ROLE_PATTERN.match(role.name)
-                if match:
-                    default_team = match.group(1)
-                    break
+        try:
+            member = interaction.user
+            default_team = ""
+            if isinstance(member, discord.Member):
+                for role in member.roles:
+                    match = TEAM_ROLE_PATTERN.match(role.name)
+                    if match:
+                        default_team = match.group(1)
+                        break
 
-        await interaction.response.send_modal(MentorRequestModal(default_team=default_team))
+            await interaction.response.send_modal(MentorRequestModal(default_team=default_team))
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"⚠️ Error opening modal: {e}", ephemeral=True)
 
 
 class MentorQueueCog(commands.Cog):
@@ -253,6 +259,8 @@ class MentorQueueCog(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         embed = discord.Embed(
             title="🙋 IEEE QP Mentor Help & Feedback Queue",
             description=(
@@ -268,7 +276,7 @@ class MentorQueueCog(commands.Cog):
 
         view = MentorQueueSetupView()
         await interaction.channel.send(embed=embed, view=view)
-        await interaction.response.send_message("✅ Mentor queue panel posted!", ephemeral=True)
+        await interaction.followup.send("✅ Mentor queue panel posted!", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
