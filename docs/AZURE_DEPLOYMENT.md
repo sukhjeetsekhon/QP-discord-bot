@@ -95,9 +95,53 @@ az containerapp create \
 
 Whenever you make changes to the code and push to `main`, GitHub Actions automatically builds a new container image and pushes it to GitHub Packages (`ghcr.io`).
 
-Because simplified Azure Container App setups run in an **Express Environment**, Azure will show an error (`'SourceControl' resources are not supported on express environments`) if you try to use the *Deployment > Continuous deployment* tab.
+Because simplified Azure Container App setups run in an **Express Environment**, Azure will show an error (`'SourceControl' resources are not supported on express environments`) if you try to use Azure Portal's *Deployment > Continuous deployment* tab.
 
-### The Standard 30-Second Update Process:
+Instead, you have two great ways to deploy updates: **Automated CI/CD via GitHub Actions** (set and forget) or **Manual Revision Update** (via Azure Portal).
+
+---
+
+### Option A: Fully Automated Continuous Deployment (Recommended)
+
+Set up a 1-time secret in your GitHub repository so GitHub Actions automatically tells Azure to deploy a new revision every time you push code!
+
+#### Step 1: Generate Azure Service Principal
+Open [Azure Cloud Shell](https://shell.azure.com/) (the `>_` icon at the top of the Azure Portal) and paste:
+
+```bash
+az ad sp create-for-rbac --name "github-actions-qp-bot" --role contributor \
+  --scopes /subscriptions/3cf4d6cf-f3a4-4957-9586-860305f63000/resourceGroups/rg-qp-bot \
+  --json-auth
+```
+
+This will print a JSON block that looks like:
+```json
+{
+  "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "clientSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "subscriptionId": "3cf4d6cf-f3a4-4957-9586-860305f63000",
+  "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "activeDirectoryEndpointUrl": "https://login.microsoftonline.com",
+  "resourceManagerEndpointUrl": "https://management.azure.com/",
+  "activeDirectoryGraphResourceId": "https://graph.windows.net/",
+  "sqlManagementEndpointUrl": "https://management.core.windows.net:8443/",
+  "galleryEndpointUrl": "https://gallery.azure.com/",
+  "managementEndpointUrl": "https://management.core.windows.net/"
+}
+```
+
+#### Step 2: Add Secret to GitHub
+1. In your GitHub repository, go to **Settings** > **Secrets and variables** > **Actions**.
+2. Click **New repository secret**.
+3. **Name**: `AZURE_CREDENTIALS`
+4. **Secret**: Paste the entire JSON block from Step 1.
+5. Click **Add secret**.
+
+That's it! Every time code is pushed to `main`, GitHub Actions will build the Docker container and automatically deploy the new revision directly to Azure with zero manual clicks.
+
+---
+
+### Option B: Manual Revision Update via Azure Portal (30 Seconds)
 
 1. **Find the Latest Commit ID**:
    * Look at your latest commit on GitHub (or run `git log -1 --format="%H"` locally).
@@ -145,7 +189,7 @@ To check that your bot is running and view live logs:
    🤖 QP Discord Bot logged in as: QP Bot#1234
     Connected to 1 server(s)
     Max Teams: 28
-    Team Budget Allocation: $55.00
+    Team Budget Allocation: $50.00
     Staff Role: QP Chair
     Tickets Category: Hardware Requests
    ==================================================
