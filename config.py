@@ -15,6 +15,7 @@ STAFF_ROLE_NAME = os.getenv("STAFF_ROLE_NAME", "QP Chair")
 STAFF_ROLES = ["QP Chair", "Mentor", "Officer"]
 
 TICKETS_CATEGORY_NAME = os.getenv("TICKETS_CATEGORY_NAME", "Hardware Requests")
+MENTOR_CATEGORY_NAME = os.getenv("MENTOR_CATEGORY_NAME", "Help Requests")
 DB_PATH = os.getenv("DB_PATH", "data/qp_bot.db")
 
 # Optional: Server/Guild ID for fast slash command sync

@@ -6,7 +6,7 @@ import config
 import database
 from cogs.team_assignment import TeamAssignmentView
 from cogs.hardware_tickets import TicketRequestView, TicketControlView
-from cogs.mentor_queue import MentorQueueSetupView
+from cogs.mentor_queue import MentorQueueSetupView, MentorTicketControlView
 
 # Configure required Discord intents
 intents = discord.Intents.default()
@@ -36,6 +36,7 @@ class QPBot(commands.Bot):
         self.add_view(TicketRequestView())
         self.add_view(TicketControlView())
         self.add_view(MentorQueueSetupView())
+        self.add_view(MentorTicketControlView())
 
         # 3. Load extension cogs
         initial_extensions = [

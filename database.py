@@ -69,10 +69,11 @@ def init_db():
             );
         """)
 
-        # 5. Mentor Help Queue (Location optional)
+        # 5. Mentor Help Queue (Location optional, channel_id for private ticket channel)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mentor_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_id INTEGER,
                 message_id INTEGER,
                 team_number INTEGER,
                 requester_id INTEGER,
@@ -84,6 +85,12 @@ def init_db():
                 resolved_at TIMESTAMP
             );
         """)
+
+        # Migration: Ensure channel_id exists on older databases
+        cursor = conn.execute("PRAGMA table_info(mentor_requests);")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "channel_id" not in columns:
+            conn.execute("ALTER TABLE mentor_requests ADD COLUMN channel_id INTEGER;")
 
         # Initialize default budgets for all teams if missing
         for t in range(1, config.MAX_TEAMS + 1):
@@ -501,18 +508,30 @@ def create_mentor_request(
     team_number: int,
     requester_id: int,
     description: str,
-    location: str = "Anywhere / Remote",
+    channel_id: Optional[int] = None,
+    location: str = "Flexible / Remote",
 ) -> int:
     """Create a new mentor help or feedback ticket."""
     conn = get_db_connection()
     with conn:
         cursor = conn.execute("""
-            INSERT INTO mentor_requests (team_number, requester_id, location, description, status)
-            VALUES (?, ?, ?, ?, 'waiting')
-        """, (team_number, requester_id, location.strip(), description.strip()))
+            INSERT INTO mentor_requests (team_number, requester_id, location, description, status, channel_id)
+            VALUES (?, ?, ?, ?, 'waiting', ?)
+        """, (team_number, requester_id, location.strip(), description.strip(), channel_id))
         req_id = cursor.lastrowid
     conn.close()
     return req_id
+
+
+def get_mentor_request_by_channel(channel_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieve details for a single mentor request by its channel ID."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM mentor_requests WHERE channel_id = ? ORDER BY id DESC LIMIT 1",
+        (channel_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def set_mentor_request_message_id(request_id: int, message_id: int):

@@ -36,13 +36,16 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * `/my-team`: Check your team roster, remaining budget, borrowed lab equipment, and private channel link.
   * `/team-info team:<number>`: View directory status for any team.
 
-### 4. 🙋 Mentor Help & Feedback Queue (Anywhere / Remote & In-Person)
-* Run `/setup-mentor-queue` to post a persistent **"Request Mentor Help / Feedback"** button.
-* Students enter their team number and describe what they need assistance or feedback on (no required bench location—works for code, design review, or circuit debugging).
-* Notifies Leadership in real-time with action buttons:
-  * **Claim Request 🏃**: Notifies the team that a mentor is assisting them.
-  * **Mark Resolved ✅**: Marks the ticket resolved and logs timestamp.
-  * **Cancel ❌**: Cancels the request.
+### 4. 🙋 Mentor Help & Feedback Queue (Private Dynamic Help Channels)
+* Run `/setup-mentor-queue` to post a persistent **"Request Mentor Help / Feedback"** panel in `#help-tickets`.
+* **Auto-Detected Team**: Automatically identifies the requester's team number from their role—no manual team typing required.
+* **Private Dynamic Help Channels (`help-1`, `help-2`, etc.)**:
+  * Dynamically numbered starting from 1 under the `Help Requests` category.
+  * Private channel visible exclusively to the requesting team, requester, and Leadership (`Mentor`, `QP Chair`, `Officer`).
+* **In-Channel Ticket Controls**:
+  * **Claim Request 🏃**: Mentors click to claim the request, updating status and notifying the team.
+  * **Mark Resolved ✅**: Mentors or students mark the ticket resolved when help is complete.
+  * **Close Channel 🔒**: Confirms and deletes the private channel with countdown once assistance wraps up.
 
 ### 5. 📦 Lab Inventory Location Tracking & Timestamped Borrowing
 * Track which team borrowed what component and when, with exact timestamps on checkouts and returns.
