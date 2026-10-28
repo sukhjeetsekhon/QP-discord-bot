@@ -297,7 +297,7 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
             ),
         }
 
-        staff_mentions: List[str] = []
+        # Grant channel access to staff roles (QP Chair, Mentor, Officer)
         for role_name in config.STAFF_ROLES:
             role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), guild.roles)
             if role:
@@ -309,6 +309,13 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
                     embed_links=True,
                     manage_messages=True,
                 )
+
+        # Ping ONLY @Mentor and @QP Chair (do not ping @Officer)
+        mentor_ping_roles = ["Mentor", "QP Chair"]
+        staff_mentions: List[str] = []
+        for role_name in mentor_ping_roles:
+            role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), guild.roles)
+            if role:
                 staff_mentions.append(role.mention)
 
         # 4. Create the private text channel
@@ -336,7 +343,7 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
         )
 
         # 6. Send initial embed and Claim controls inside the new private channel
-        mention_str = " ".join(staff_mentions) if staff_mentions else f"@{config.STAFF_ROLE_NAME}"
+        mention_str = " ".join(staff_mentions) if staff_mentions else "@Mentor @QP Chair"
         embed = discord.Embed(
             title=f"🟡 Mentor Help Request #{next_number} — Team {self.team_number}",
             description=(
@@ -350,7 +357,7 @@ class MentorRequestModal(discord.ui.Modal, title="Request Mentor Help or Feedbac
         embed.add_field(name="Requested By", value=member.mention, inline=True)
         embed.add_field(name="Status", value="🟡 Waiting for Mentor", inline=True)
         embed.add_field(name="Help / Feedback Topic", value=issue, inline=False)
-        embed.set_footer(text="Mentors & Officers: Click 'Claim Request' below to assist this team!")
+        embed.set_footer(text="Mentors & QP Chairs: Click 'Claim Request' below to assist this team!")
 
         control_view = MentorTicketControlView()
         msg = await help_channel.send(
