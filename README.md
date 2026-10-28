@@ -94,7 +94,7 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
    ```env
    DISCORD_TOKEN=your_token_here
    MAX_TEAMS=28
-   DEFAULT_TEAM_BUDGET=55.00
+   DEFAULT_TEAM_BUDGET=50.00
    IEEE_MEMBER_BONUS=11.00
    STAFF_ROLE_NAME=QP Chair
    TICKETS_CATEGORY_NAME=Hardware Requests
@@ -121,8 +121,9 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 
 For instructions on deploying and updating this bot on **Azure Container Apps (ACA)** to run 24/7, see our **[Azure Deployment Guide](docs/AZURE_DEPLOYMENT.md)**.
 
-> **💡 Quick Tip on Updating Azure Revisions:**
-> Whenever new code is pushed to `main`, GitHub Actions automatically builds the image with the commit SHA (e.g. `ghcr.io/<user>/qp-discord-bot:<commit-sha>`).
-> To deploy the update, go to your Container App in Azure > **App** > **Containers** > **Edit and deploy**, update the image tag with the commit SHA, and click **Create**!
+> **🚀 Continuous Deployment Enabled:**
+> Every `git push` to `main` triggers a GitHub Actions workflow that automatically builds the container image and deploys a new revision directly to your Azure Container App.
+>
+> 💡 *Manual Fallback*: If you ever need to manually deploy a specific revision, you can update the image tag (`ghcr.io/sukhjeetsekhon/qp-discord-bot:<commit-sha>`) under **App** > **Containers** > **Edit and deploy** in the Azure Portal.
 
 
