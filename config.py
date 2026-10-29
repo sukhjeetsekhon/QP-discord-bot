@@ -24,7 +24,12 @@ AI_HELP_CHANNEL_ID = int(_ai_channel_id_env) if _ai_channel_id_env and _ai_chann
 
 # Google Gemini API Settings (Free tier from Google AI Studio)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+_raw_gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+# Automatically remap deprecated legacy models (2.5, 2.0, 1.5) to gemini-3.8-flash
+if _raw_gemini_model.startswith(("gemini-2.5", "gemini-2.0", "gemini-1.5")):
+    GEMINI_MODEL = "gemini-3.8-flash"
+else:
+    GEMINI_MODEL = _raw_gemini_model
 KNOWLEDGE_DIR = os.getenv("KNOWLEDGE_DIR", "knowledge")
 
 DB_PATH = os.getenv("DB_PATH", "data/qp_bot.db")

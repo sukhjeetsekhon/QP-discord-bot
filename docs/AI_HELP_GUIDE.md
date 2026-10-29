@@ -44,8 +44,8 @@ In your local `.env` file, add:
 # Google Gemini API Key
 GEMINI_API_KEY=AIzaSy...your_actual_key_here
 
-# Optional: customize model (default: gemini-2.5-flash)
-GEMINI_MODEL=gemini-2.5-flash
+# Optional: customize model (default: gemini-3.8-flash)
+GEMINI_MODEL=gemini-3.8-flash
 
 # Channel name for AI Q&A (default: ask-ai)
 AI_HELP_CHANNEL_NAME=ask-ai

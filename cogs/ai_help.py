@@ -158,23 +158,40 @@ class AIHelpCog(commands.Cog):
         else:
             contents.append(user_prompt)
 
-        try:
-            # Use non-blocking async Gemini client call
-            response = await client.aio.models.generate_content(
-                model=config.GEMINI_MODEL,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.7,
-                ),
-            )
-            return response.text if response.text else "⚠️ I couldn't generate a response. Please try rephrasing your question!"
-        except Exception as e:
-            error_str = str(e)
-            print(f"❌ Gemini API Error: {error_str}")
-            if "ResourceExhausted" in error_str or "quota" in error_str.lower():
-                return "⚠️ The free Gemini API rate limit was momentarily reached. Please wait a minute and try again!"
-            return f"⚠️ An error occurred while communicating with the AI service: `{error_str[:150]}`"
+        # Determine candidate models with automatic fallback
+        candidate_models = [config.GEMINI_MODEL]
+        for fallback_model in ("gemini-3.8-flash", "gemini-3.5-flash-lite"):
+            if fallback_model not in candidate_models:
+                candidate_models.append(fallback_model)
+
+        last_error = ""
+        for model_name in candidate_models:
+            try:
+                # Use non-blocking async Gemini client call
+                response = await client.aio.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.7,
+                    ),
+                )
+                if response.text:
+                    return response.text
+                return "⚠️ I couldn't generate a response. Please try rephrasing your question!"
+            except Exception as e:
+                error_str = str(e)
+                last_error = error_str
+                print(f"⚠️ Gemini API Error with model '{model_name}': {error_str}")
+                # If 404 (model not found / deprecated) or 429 quota, try next fallback candidate
+                if any(kw in error_str.lower() for kw in ("404", "not found", "no longer available", "deprecated", "resourceexhausted", "quota", "429")):
+                    continue
+                # For non-recoverable errors (e.g. invalid API key), break early
+                break
+
+        if "ResourceExhausted" in last_error or "quota" in last_error.lower() or "429" in last_error:
+            return "⚠️ The free Gemini API rate limit was momentarily reached. Please wait a minute and try again!"
+        return f"⚠️ An error occurred while communicating with the AI service: `{last_error[:150]}`"
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
