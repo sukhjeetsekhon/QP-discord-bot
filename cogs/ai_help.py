@@ -191,9 +191,8 @@ class AIHelpCog(commands.Cog):
         last_error = ""
 
         for model_name in candidate_models:
+            tools = [types.Tool(google_search=types.GoogleSearch())] if (use_search and not search_failed) else None
             try:
-                tools = [types.Tool(google_search=types.GoogleSearch())] if (use_search and not search_failed) else None
-
                 # Use non-blocking async Gemini client call
                 response = await client.aio.models.generate_content(
                     model=model_name,
@@ -216,27 +215,28 @@ class AIHelpCog(commands.Cog):
             except Exception as e:
                 error_str = str(e)
                 last_error = error_str
-                print(f"⚠️ Gemini API Error with model '{model_name}': {error_str}")
+                print(f"⚠️ Gemini API Error with model '{model_name}' (tools={bool(tools)}): {error_str}")
 
-                # Check if the error is due to search grounding permissions on unpaid keys
-                if any(kw in error_str.lower() for kw in ("grounding with google search is only available", "tool is not supported", "search grounding")):
-                    if not search_failed:
-                        print("ℹ️ Search Grounding requires a billing-enabled key; falling back to built-in engineering knowledge.")
-                        search_failed = True
-                        try:
-                            # Retry immediately on the same model without the search tool
-                            response = await client.aio.models.generate_content(
-                                model=model_name,
-                                contents=contents,
-                                config=types.GenerateContentConfig(
-                                    system_instruction=system_instruction,
-                                    temperature=0.7,
-                                ),
-                            )
-                            if response.text:
-                                return response.text
-                        except Exception as retry_e:
-                            last_error = str(retry_e)
+                # If the call failed while tools were active (e.g. search quota limit on free tier),
+                # disable search for the remaining session and immediately retry with pure model text generation
+                if tools is not None:
+                    print("ℹ️ Request with Google Search failed (unpaid tier has 0 search quota). Retrying with built-in engineering knowledge...")
+                    search_failed = True
+                    try:
+                        fallback_resp = await client.aio.models.generate_content(
+                            model=model_name,
+                            contents=contents,
+                            config=types.GenerateContentConfig(
+                                system_instruction=system_instruction,
+                                temperature=0.7,
+                            ),
+                        )
+                        if fallback_resp.text:
+                            return fallback_resp.text
+                    except Exception as retry_e:
+                        error_str = str(retry_e)
+                        last_error = error_str
+                        print(f"⚠️ Gemini retry without tools also failed on '{model_name}': {error_str}")
 
                 # Check if this error is permanently non-recoverable (e.g. invalid API key)
                 is_non_recoverable = any(

@@ -31,7 +31,7 @@ if _raw_gemini_model.startswith(("gemini-2.5", "gemini-2.0", "gemini-1.5")):
 else:
     GEMINI_MODEL = _raw_gemini_model
 KNOWLEDGE_DIR = os.getenv("KNOWLEDGE_DIR", "knowledge")
-ENABLE_WEB_SEARCH = os.getenv("ENABLE_WEB_SEARCH", "true").lower() in ("true", "1", "yes")
+ENABLE_WEB_SEARCH = os.getenv("ENABLE_WEB_SEARCH", "false").lower() in ("true", "1", "yes")
 
 DB_PATH = os.getenv("DB_PATH", "data/qp_bot.db")
 
