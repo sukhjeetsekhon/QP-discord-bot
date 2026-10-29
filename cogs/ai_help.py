@@ -97,49 +97,86 @@ def build_system_instruction(knowledge_base: str) -> str:
     return (
         "You are the official IEEE Quarterly Projects (QP) AI Assistant for the UCSD IEEE Student Branch Discord server.\n"
         "Your purpose is to answer questions from students, teams, and mentors about the QP program, rules, hardware budgets, lab inventory, ticketing, timelines, and technical engineering advice.\n\n"
-        "CRITICAL RULES & GUIDELINES:\n"
+        "CRITICAL DISCORD FORMATTING & LENGTH RULES:\n"
+        "- NO MARKDOWN TABLES: Discord does NOT render markdown tables (| col | col |). NEVER use tables under any circumstances. Present comparisons, pinouts, and tabular data using clean bulleted lists (e.g. '• **Pin A4:** SDA') or bold key-value pairs.\n"
+        "- CONCISE LENGTH: Keep responses concise and focused (aim for under 1,500 characters). Avoid sprawling multi-page answers. The entire response should comfortably fit in a single clean Discord message without splitting.\n"
+        "- BRIEF CODE SNIPPETS: When providing code, give only the essential 10-15 lines (e.g. pin definitions and setup calls). Never output huge 50+ line boilerplate sketches that get cut off.\n"
+        "- DISCORD-COMPLIANT MARKDOWN: Use bold (**text**), italics (*text*), bullet points (- or •), sub-bullets (indented), headers (### Header), and inline code (`code`). Do NOT use HTML tags or LaTeX math ($).\n\n"
+        "CRITICAL PROGRAM RULES & GUIDELINES:\n"
         "1. Competition Rules & Administration: Ground your answers in the provided QP Knowledge Base whenever possible for budgets, schedules, milestone deliverables, team sizes, and purchasing policies.\n"
-        "2. Technical & Hardware Questions: For technical questions not explicitly covered in the QP Knowledge Base (e.g. microcontroller pinouts like ESP32/Arduino/RP2040, circuit schematics, sensors, I2C/SPI wiring, motor drivers, battery power, coding/debugging in C++/Python, component selection): Use your deep engineering knowledge and web search findings to provide direct, practical, and accurate guidance.\n"
-        "3. Be concise, friendly, encouraging, and clear. Use GitHub-flavored markdown with bullet points and bold headings for readability.\n"
-        "4. Hardware Budgets: Baseline is $50.00 per team, plus an additional +$11.00 for each verified IEEE student member on the team (e.g. $61 for 1 member, $72 for 2 members, etc.).\n"
-        "5. Hardware Purchases: Handled via the '#hardware-requests' channel using the 'Request' button, which opens a private sequential ticket.\n"
-        "6. Lab Equipment: Handled in the IEEE Student Lab using /checkout and /return.\n"
-        "7. Mentorship / Help Queue: If a student needs in-person assistance with hardware debugging or design feedback, guide them to click 'Request Mentor Help / Feedback' in the #help-tickets channel.\n"
-        "8. Administrative Exceptions: For decisions requiring human approval (like approving custom budget overages or granting exceptions), instruct the student to contact the QP Chair or open a help ticket.\n\n"
+        "2. Technical & Hardware Questions: For technical questions not explicitly in the QP Knowledge Base (microcontroller pinouts like ESP32/Arduino/RP2040, circuit schematics, sensors, I2C/SPI wiring, motor drivers, battery power, coding/debugging in C++/Python): Use your engineering knowledge to provide direct, practical, and accurate guidance.\n"
+        "3. Hardware Budgets: Baseline is $50.00 per team, plus an additional +$11.00 for each verified IEEE student member on the team (e.g. $61 for 1 member, $72 for 2 members, etc.).\n"
+        "4. Hardware Purchases: Handled via the '#hardware-requests' channel using the 'Request' button, which opens a private sequential ticket.\n"
+        "5. Lab Equipment: Handled in the IEEE Student Lab using /checkout and /return.\n"
+        "6. Mentorship / Help Queue: If a student needs in-person assistance with hardware debugging or design feedback, guide them to click 'Request Mentor Help / Feedback' in the #help-tickets channel.\n"
+        "7. Administrative Exceptions: For decisions requiring human approval (like approving custom budget overages or granting exceptions), instruct the student to contact the QP Chair or open a help ticket.\n\n"
         f"=== OFFICIAL QP KNOWLEDGE BASE ===\n{knowledge_base}\n"
         "=== END OF KNOWLEDGE BASE ==="
     )
 
 
-def chunk_message(text: str, max_length: int = 1900) -> List[str]:
-    """Split response into chunks under Discord's 2000 character limit without breaking words."""
+def chunk_message(text: str, max_length: int = 1850) -> List[str]:
+    """
+    Split response into chunks under Discord's 2000 character limit without breaking words,
+    and automatically preserve code block formatting across message boundaries.
+    """
     if len(text) <= max_length:
         return [text]
 
     chunks = []
     lines = text.split("\n")
     current_chunk = ""
+    in_code_block = False
+    current_lang = ""
 
     for line in lines:
-        if len(current_chunk) + len(line) + 1 <= max_length:
+        stripped_line = line.strip()
+        is_code_toggle = stripped_line.startswith("```")
+
+        # Reserve headroom for closing ```\n if currently in a code block
+        overhead = 6 if in_code_block else 0
+        if len(current_chunk) + len(line) + 1 + overhead <= max_length:
             current_chunk += (line + "\n")
+            if is_code_toggle:
+                in_code_block = not in_code_block
+                if in_code_block:
+                    current_lang = stripped_line[3:].strip()
+                else:
+                    current_lang = ""
         else:
-            if current_chunk.strip():
+            # Reached max length, need to split cleanly
+            if in_code_block:
+                # Close the code block in the current chunk
+                current_chunk += "```\n"
                 chunks.append(current_chunk.strip())
-            # If a single line is absurdly long, break it by words
-            if len(line) > max_length:
-                words = line.split(" ")
-                current_chunk = ""
-                for word in words:
-                    if len(current_chunk) + len(word) + 1 <= max_length:
-                        current_chunk += (word + " ")
-                    else:
-                        chunks.append(current_chunk.strip())
-                        current_chunk = word + " "
+                # Reopen code block in the new chunk
+                current_chunk = f"```{current_lang}\n{line}\n"
+                if is_code_toggle:
+                    in_code_block = False
+                    current_lang = ""
             else:
-                current_chunk = line + "\n"
+                if current_chunk.strip():
+                    chunks.append(current_chunk.strip())
+                # If a single line is excessively long, break by words
+                if len(line) > max_length:
+                    words = line.split(" ")
+                    current_chunk = ""
+                    for word in words:
+                        if len(current_chunk) + len(word) + 1 <= max_length:
+                            current_chunk += (word + " ")
+                        else:
+                            chunks.append(current_chunk.strip())
+                            current_chunk = word + " "
+                    current_chunk += "\n"
+                else:
+                    current_chunk = line + "\n"
+                if is_code_toggle:
+                    in_code_block = True
+                    current_lang = stripped_line[3:].strip()
 
     if current_chunk.strip():
+        if in_code_block:
+            current_chunk += "```\n"
         chunks.append(current_chunk.strip())
 
     return chunks
