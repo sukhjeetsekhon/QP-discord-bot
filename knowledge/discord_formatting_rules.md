@@ -6,7 +6,7 @@ This document outlines the official Discord message formatting capabilities, syn
 
 ## 1. Supported Discord Formatting
 
-Discord supports a subset of Markdown. When composing answers, use only the following supported styles:
+Discord supports a specific subset of Markdown. When composing answers, use only the following supported styles:
 
 ### Text Styles
 - **Bold**: `**text**` → **text**
@@ -62,13 +62,39 @@ Discord **does NOT** render the following formatting. Never use them in AI respo
 
 | Feature | Does Discord Support It? | What Happens / What to Use Instead |
 | :--- | :---: | :--- |
+| **LaTeX / KaTeX Math** (`$2.2\text{ k}\Omega$`) | ❌ **NO** | Discord prints raw `$`, `\text{...}`, and `\Omega`. **Never use LaTeX.** Use plain text Unicode units (`2.2 kΩ`, `10 µF`). |
 | **Markdown Tables** (`\| Col \| Col \|`) | ❌ **NO** | Renders as raw, unformatted pipe characters. **Never use tables.** Format tabular data as clean bulleted lists or key-value pairs instead. |
 | **HTML Tags** (`<br>`, `<div>`, `<b>`) | ❌ **NO** | Rendered as raw text or stripped completely. Use standard Discord markdown only. |
-| **LaTeX / KaTeX Math** (`$E = mc^2$`) | ❌ **NO** | Dollar signs render as raw text. Use standard Unicode symbols instead (e.g. `Ω`, `µF`, `±`, `°C`, `V`, `A`). |
 | **Inline Markdown Images** (`![alt](url)`) | ❌ **NO** | Markdown image tags do not embed inline. |
 
-### How to Format Tabular Data Without Tables
-Instead of a markdown table like:
+---
+
+## 3. Formatting Math, Units & Formulas (NO LaTeX!)
+
+Discord **never** renders LaTeX math syntax. Dollar signs (`$`) and LaTeX macros (`\text{}`, `\Omega`, `\mu`, `\frac{}{}`) will print literally on Discord and look broken to users.
+
+### Conversion Guide: LaTeX vs. Discord
+
+| Type | ❌ Prohibited (LaTeX) | ✅ Allowed (Clean Discord Text) |
+| :--- | :--- | :--- |
+| **Resistors** | `$2.2\text{ k}\Omega$ to $3.3\text{ k}\Omega$` | `2.2 kΩ to 3.3 kΩ` or `2.2k to 3.3k ohm` |
+| **Resistors (Ohms)** | `$10\text{ k}\Omega$` or `$4.7\text{k}\Omega$` | `10 kΩ` or `4.7 kΩ` |
+| **Capacitors** | `$10\mu\text{F}$` or `$100\text{nF}$` | `10 µF` or `100 nF` |
+| **Voltages** | `$V_{in} = 5\text{V}$` or `$3.3\text{V}$` | `Vin = 5V` or `3.3V` |
+| **Tolerances** | `$\pm 5\%$` | `±5%` |
+| **Approximations** | `$\approx 100\text{ mA}$` | `≈ 100 mA` |
+| **Temperatures** | `$25\degree\text{C}$` or `$25^\circ\text{C}$` | `25°C` |
+| **Equations** | `$f = \frac{1}{2\pi RC}$` | `f = 1 / (2π * R * C)` |
+| **Variables** | `$R_1$`, `$C_1$`, `$I_{max}$` | `R1`, `C1`, `I_max` |
+
+> [!IMPORTANT]
+> The dollar sign (`$`) must **ONLY** be used when describing money and budgets (e.g. `$50.00 base budget`, `$11.00 bonus`). Never wrap equations, numbers, or units in dollar signs.
+
+---
+
+## 4. Formatting Tabular Data Without Tables
+
+Instead of an unrendered markdown table like:
 ```text
 | Component | Pin on Arduino |
 | OLED SDA  | Pin A4         |
@@ -84,7 +110,7 @@ Instead of a markdown table like:
 
 ---
 
-## 3. Discord Character Limits & Chunking Best Practices
+## 5. Discord Character Limits & Chunking Best Practices
 
 1. **2,000 Character Hard Limit**:
    - A single Discord message cannot exceed 2,000 characters.

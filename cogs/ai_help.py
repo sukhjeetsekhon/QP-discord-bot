@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 import asyncio
 from datetime import datetime
@@ -92,16 +93,76 @@ def extract_grounding_sources(response) -> List[Tuple[str, str]]:
     return sources
 
 
+def clean_latex(text: str) -> str:
+    r"""
+    Sanitize and convert LaTeX formatting to standard Discord-friendly text.
+    Discord does not render LaTeX ($...$, $$...$$, \text{}, \Omega, etc.).
+    Preserves genuine currency mentions ($50, $11.00).
+    """
+    if not text:
+        return ""
+
+    # 1. Replace common LaTeX mathematical and electrical symbols
+    replacements = [
+        (r'\\Omega\b', 'Ω'),
+        (r'\\ohm\b', 'Ω'),
+        (r'\\mu\b', 'µ'),
+        (r'\\micro\b', 'µ'),
+        (r'\\pm\b', '±'),
+        (r'\\approx\b', '≈'),
+        (r'\\times\b', '×'),
+        (r'\\cdot\b', '·'),
+        (r'\\le\b', '≤'),
+        (r'\\ge\b', '≥'),
+        (r'\\neq\b', '≠'),
+        (r'\\infty\b', '∞'),
+        (r'\\pi\b', 'π'),
+        (r'\\theta\b', 'θ'),
+        (r'\\alpha\b', 'α'),
+        (r'\\beta\b', 'β'),
+        (r'\\Delta\b', 'Δ'),
+        (r'\\degree\b', '°'),
+        (r'\^\\circ', '°'),
+        (r'\\sim\b', '~'),
+        (r'\\%', '%'),
+        (r'\\&', '&'),
+    ]
+    for pattern, repl in replacements:
+        text = re.sub(pattern, repl, text)
+
+    # 2. Unwrap \text{...}, \mathrm{...}, \sqrt{...}, \frac{...}{...}
+    text = re.sub(r'\\(?:text|mathrm|mathbf|mathit)\{([^}]+)\}', r'\1', text)
+    text = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', text)
+    text = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1 / \2)', text)
+
+    # 3. Unwrap paired $$...$$ (display math)
+    text = re.sub(r'\$\$([^$]+)\$\$', r'\1', text)
+
+    # 4. Unwrap inline math $...$ containing symbols, Greek letters, or math operators
+    text = re.sub(r'\$([^$\n]*[\\Ωµ±≈×·≤≥≠∞πτθαβΔ°~^_/][^$\n]*)\$', r'\1', text)
+
+    # 5. Unwrap inline math with units or single variables (e.g. $2.2 k\Omega$, $4.7k$, $V_{in}$, $R_1$, $f$, $x$)
+    # Note: Does not match standalone currency like $50 or $50.00
+    text = re.sub(r'\$([0-9.]+\s*[a-zA-ZΩµ°]+)\$', r'\1', text)
+    text = re.sub(r'\$([a-zA-Z](?:_[a-zA-Z0-9]+)?)\$', r'\1', text)
+
+    # 6. Clean subscripts like V_{in} -> V_in, R_{pullup} -> R_pullup
+    text = re.sub(r'([A-Za-z]+)_\{([^}]+)\}', r'\1_\2', text)
+
+    return text
+
+
 def build_system_instruction(knowledge_base: str) -> str:
     """Construct the grounding system prompt for the Gemini model."""
     return (
         "You are the official IEEE Quarterly Projects (QP) AI Assistant for the UCSD IEEE Student Branch Discord server.\n"
         "Your purpose is to answer questions from students, teams, and mentors about the QP program, rules, hardware budgets, lab inventory, ticketing, timelines, and technical engineering advice.\n\n"
         "CRITICAL DISCORD FORMATTING & LENGTH RULES:\n"
+        "- NO LATEX OR MATH DOLLAR SIGNS: Discord DOES NOT render LaTeX math ($...$, $$...$$, \\text{}, \\Omega, \\mu, etc.). NEVER wrap units, numbers, equations, or symbols in dollar signs ($). Always write units and symbols in plain text or standard Unicode (e.g. '2.2 kΩ to 3.3 kΩ', '4.7 kΩ', '10 µF', '5V', '±5%', '3.3V'). The ONLY time '$' is allowed is for money / budget amounts (e.g. '$50.00').\n"
         "- NO MARKDOWN TABLES: Discord does NOT render markdown tables (| col | col |). NEVER use tables under any circumstances. Present comparisons, pinouts, and tabular data using clean bulleted lists (e.g. '• **Pin A4:** SDA') or bold key-value pairs.\n"
         "- CONCISE LENGTH: Keep responses concise and focused (aim for under 1,500 characters). Avoid sprawling multi-page answers. The entire response should comfortably fit in a single clean Discord message without splitting.\n"
         "- BRIEF CODE SNIPPETS: When providing code, give only the essential 10-15 lines (e.g. pin definitions and setup calls). Never output huge 50+ line boilerplate sketches that get cut off.\n"
-        "- DISCORD-COMPLIANT MARKDOWN: Use bold (**text**), italics (*text*), bullet points (- or •), sub-bullets (indented), headers (### Header), and inline code (`code`). Do NOT use HTML tags or LaTeX math ($).\n\n"
+        "- DISCORD-COMPLIANT MARKDOWN: Use bold (**text**), italics (*text*), bullet points (- or •), sub-bullets (indented), headers (### Header), and inline code (`code`). Do NOT use HTML tags.\n\n"
         "CRITICAL PROGRAM RULES & GUIDELINES:\n"
         "1. Competition Rules & Administration: Ground your answers in the provided QP Knowledge Base whenever possible for budgets, schedules, milestone deliverables, team sizes, and purchasing policies.\n"
         "2. Technical & Hardware Questions: For technical questions not explicitly in the QP Knowledge Base (microcontroller pinouts like ESP32/Arduino/RP2040, circuit schematics, sensors, I2C/SPI wiring, motor drivers, battery power, coding/debugging in C++/Python): Use your engineering knowledge to provide direct, practical, and accurate guidance.\n"
@@ -247,7 +308,7 @@ class AIHelpCog(commands.Cog):
                     if sources:
                         sources_list = "\n".join(f"• [{title}]({uri})" for title, uri in sources[:3])
                         reply += f"\n\n🌐 **Web Sources:**\n{sources_list}"
-                    return reply
+                    return clean_latex(reply)
                 return "⚠️ I couldn't generate a response. Please try rephrasing your question!"
             except Exception as e:
                 error_str = str(e)
@@ -269,7 +330,7 @@ class AIHelpCog(commands.Cog):
                             ),
                         )
                         if fallback_resp.text:
-                            return fallback_resp.text
+                            return clean_latex(fallback_resp.text)
                     except Exception as retry_e:
                         error_str = str(retry_e)
                         last_error = error_str
