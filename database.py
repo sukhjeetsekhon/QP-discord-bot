@@ -92,6 +92,18 @@ def init_db():
         if "channel_id" not in columns:
             conn.execute("ALTER TABLE mentor_requests ADD COLUMN channel_id INTEGER;")
 
+        # 6. AI Knowledge Cache (Synced channel transcripts and documents)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_knowledge_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type TEXT,
+                source_name TEXT UNIQUE,
+                content TEXT,
+                message_count INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
         # Initialize default budgets for all teams if missing
         for t in range(1, config.MAX_TEAMS + 1):
             conn.execute("""
@@ -591,3 +603,48 @@ def get_mentor_request(request_id: int) -> Optional[Dict[str, Any]]:
     row = conn.execute("SELECT * FROM mentor_requests WHERE id = ?", (request_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+# ==========================================
+# AI KNOWLEDGE BASE FUNCTIONS
+# ==========================================
+
+def save_knowledge_cache(source_type: str, source_name: str, content: str, message_count: int = 0):
+    """Save or update indexed knowledge from a channel or document."""
+    conn = get_db_connection()
+    now_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+    with conn:
+        conn.execute("""
+            INSERT INTO ai_knowledge_cache (source_type, source_name, content, message_count, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(source_name) DO UPDATE SET
+                source_type = excluded.source_type,
+                content = excluded.content,
+                message_count = excluded.message_count,
+                updated_at = excluded.updated_at;
+        """, (source_type, source_name, content, message_count, now_str))
+    conn.close()
+
+
+def get_all_knowledge_cache() -> List[Dict[str, Any]]:
+    """Retrieve all cached knowledge entries."""
+    conn = get_db_connection()
+    rows = conn.execute("""
+        SELECT id, source_type, source_name, content, message_count, updated_at
+        FROM ai_knowledge_cache
+        ORDER BY updated_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def clear_knowledge_cache(source_name: Optional[str] = None):
+    """Clear knowledge cache for a specific source or all sources."""
+    conn = get_db_connection()
+    with conn:
+        if source_name:
+            conn.execute("DELETE FROM ai_knowledge_cache WHERE source_name = ?", (source_name,))
+        else:
+            conn.execute("DELETE FROM ai_knowledge_cache;")
+    conn.close()
+

@@ -49,6 +49,9 @@ Once your Container App is created, click **Go to resource** and configure these
      * `MAX_TEAMS`: `28`
      * `STAFF_ROLE_NAME`: `QP Chair`
      * `TICKETS_CATEGORY_NAME`: `Hardware Requests`
+     * `MENTOR_CATEGORY_NAME`: `Help Requests`
+     * `AI_HELP_CHANNEL_NAME`: `ask-ai`
+     * `GEMINI_API_KEY`: `<your_gemini_api_key>`
 
 ---
 
@@ -86,7 +89,10 @@ az containerapp create \
     DISCORD_TOKEN="<your_discord_token>" \
     MAX_TEAMS="28" \
     STAFF_ROLE_NAME="QP Chair" \
-    TICKETS_CATEGORY_NAME="Hardware Requests"
+    TICKETS_CATEGORY_NAME="Hardware Requests" \
+    MENTOR_CATEGORY_NAME="Help Requests" \
+    AI_HELP_CHANNEL_NAME="ask-ai" \
+    GEMINI_API_KEY="<your_gemini_api_key>"
 ```
 
 ---

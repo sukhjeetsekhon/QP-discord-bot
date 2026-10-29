@@ -58,6 +58,19 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * `/borrowed [team]`: View all equipment currently checked out by a specific team or across all teams.
   * `/loan-history [team] [item] [limit]`: View a chronological audit log of all checkouts and returns with timestamps.
 
+### 6. 🤖 AI Help Channel (`#ask-ai`) & Knowledge Base
+* Powered by **Google Gemini API** (free tier from Google AI Studio).
+* Students can ask questions directly in the `#ask-ai` channel located in the `Help Requests` category.
+* **Grounding via Documents & Channel History**:
+  * Loads static guides, rules, and schedules from the `knowledge/` directory.
+  * Scrapes and indexes historical Discord messages via `/sync-ai-knowledge`.
+  * Provides conversational answers with context memory for follow-up questions.
+* Commands:
+  * `/ask-ai question: [private:]`: Query the AI from any channel.
+  * `/sync-ai-knowledge [channel:] [limit:]`: Index Discord channel messages into the knowledge base (Leadership only).
+  * `/ai-status`: View API health, loaded documents, and synced channel counts.
+* See the full **[AI Help Channel Guide](docs/AI_HELP_GUIDE.md)** for details.
+
 ---
 
 ## 🚀 Setup & Installation
@@ -66,6 +79,7 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and open your Application.
 2. Under **Bot**:
    * Enable **Server Members Intent** under Privileged Gateway Intents.
+   * Enable **Message Content Intent** under Privileged Gateway Intents (required for reading questions in `#ask-ai`).
 3. Under **OAuth2 > URL Generator**:
    * Scopes: `bot`, `applications.commands`
    * Permissions: `Manage Roles`, `Manage Channels`, `View Channels`, `Send Messages`, `Embed Links`, `Attach Files`, `Read Message History`, `Use Slash Commands`.
@@ -101,6 +115,9 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
    IEEE_MEMBER_BONUS=11.00
    STAFF_ROLE_NAME=QP Chair
    TICKETS_CATEGORY_NAME=Hardware Requests
+   MENTOR_CATEGORY_NAME=Help Requests
+   AI_HELP_CHANNEL_NAME=ask-ai
+   GEMINI_API_KEY=your_gemini_api_key_here
    DB_PATH=data/qp_bot.db
    ```
 

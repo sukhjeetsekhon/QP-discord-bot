@@ -12,6 +12,7 @@ from cogs.mentor_queue import MentorQueueSetupView, MentorTicketControlView
 intents = discord.Intents.default()
 intents.members = True          # Required for inspecting and managing member roles
 intents.guilds = True
+intents.message_content = True  # Required for reading questions in #ask-ai and syncing knowledge
 
 
 class QPBot(commands.Bot):
@@ -45,6 +46,7 @@ class QPBot(commands.Bot):
             "cogs.team_workspaces",
             "cogs.mentor_queue",
             "cogs.inventory",
+            "cogs.ai_help",
         ]
         for ext in initial_extensions:
             try:
@@ -74,6 +76,7 @@ class QPBot(commands.Bot):
         print(f" Team Budget Allocation: ${config.DEFAULT_TEAM_BUDGET:.2f}")
         print(f" Staff Role: {config.STAFF_ROLE_NAME}")
         print(f" Tickets Category: {config.TICKETS_CATEGORY_NAME}")
+        print(f" AI Help Channel: #{config.AI_HELP_CHANNEL_NAME} ({'Gemini Active' if config.GEMINI_API_KEY else 'No GEMINI_API_KEY'})")
         print(f" Database Path: {config.DB_PATH}")
         print("=" * 55)
 
