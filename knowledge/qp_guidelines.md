@@ -46,7 +46,7 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
   4. Post the links, part numbers, quantity, and total cost of the components your team needs.
   5. A QP Chair or Mentor reviews the request and clicks **Approve Request** (deducting the amount from your team's budget), **Mark Ordered 📦**, and **Mark Arrived 📍**.
   6. When parts arrive, pick them up in the **IEEE Student Lab**.
-
+ For Fall 2026, the budgeting changed, so teams don't get individual funding. The QP chair will purchase common items for all teams to share amongst themselves. Teams are still able to make requests for what items they will need and the QP chair will check which common parts to buy in bulk for all teams to share.
 ---
 
 ## 5. 📦 Lab Inventory & Tool Checkouts
@@ -58,6 +58,9 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
   - Equipment borrowed from the lab must be checked out using `/checkout team: item: quantity:`.
   - When finished, return tools to the lab and record with `/return team: item: quantity:`.
   - All checkouts and returns are strictly timestamped to ensure shared tools (e.g. wire strippers, heat guns, multimeter probes) remain accounted for.
+  Currently the inventory checkout is not complete because inventory of the project space has not been completed, so do not use the inventory commands.
+  The QP Chair will have a form for teams to fill out for each time they need to borrow a part.
+  For the meantime, take a photo of the parts and send the image directly to the QP Chairs and make sure to notify the team number as well.
 
 ---
 
