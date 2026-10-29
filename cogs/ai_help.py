@@ -178,24 +178,40 @@ class AIHelpCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Listen for questions in the dedicated #ask-ai channel."""
-        # 1. Ignore bot messages and system messages
+        """Listen for questions in the dedicated #ask-ai channel or direct @mentions."""
+        # 1. Ignore bot messages and webhooks
         if message.author.bot or message.webhook_id:
             return
 
-        # 2. Check if this is the AI help channel
+        # 2. Check if this is the AI help channel or the bot was mentioned
         channel_name = message.channel.name.lower() if isinstance(message.channel, (discord.TextChannel, discord.Thread)) else ""
         is_ai_channel = (
             channel_name == config.AI_HELP_CHANNEL_NAME.lower()
             or (config.AI_HELP_CHANNEL_ID is not None and message.channel.id == config.AI_HELP_CHANNEL_ID)
         )
+        is_bot_mentioned = bool(self.bot.user and self.bot.user in message.mentions)
 
-        if not is_ai_channel:
+        if not is_ai_channel and not is_bot_mentioned:
             return
 
-        # 3. Ignore command invocations
-        content = message.clean_content.strip()
-        if not content or content.startswith(("/", "!")):
+        # 3. Clean content and handle mentions
+        raw_text = message.clean_content or ""
+        if self.bot.user:
+            raw_text = raw_text.replace(f"@{self.bot.user.name}", "").replace(f"@{self.bot.user.display_name}", "")
+        content = raw_text.strip()
+
+        # Handle empty content (e.g. user typed in #ask-ai when Message Content intent is disabled in Developer Portal)
+        if not content:
+            if is_ai_channel and not self.bot.intents.message_content:
+                await message.reply(
+                    "💡 *To ask me a question, please use the `/ask-ai` slash command or @mention me (@QP Helper Bot) with your question!*\n"
+                    "> *(Admins: To allow direct questions without @mentions, enable **Message Content Intent** in the [Discord Developer Portal](https://discord.com/developers/applications)).*",
+                    mention_author=False,
+                )
+            return
+
+        # Ignore command invocations
+        if content.startswith(("/", "!")):
             return
 
         # 4. Trigger typing indicator and gather recent short-term context
@@ -278,6 +294,21 @@ class AIHelpCog(commands.Cog):
             return
 
         await interaction.response.defer(ephemeral=True)
+
+        if not self.bot.intents.message_content:
+            await interaction.followup.send(
+                "⚠️ **Message Content Intent is required to index past messages!**\n\n"
+                "Discord requires the privileged **Message Content Intent** to read historical messages in channels.\n"
+                "Without it, Discord hides message content from the bot.\n\n"
+                "**How to enable it:**\n"
+                "1. Visit the [Discord Developer Portal](https://discord.com/developers/applications)\n"
+                "2. Select your Application -> Click **Bot** on the left menu\n"
+                "3. Under **Privileged Gateway Intents**, turn ON **Message Content Intent**\n"
+                "4. Click **Save Changes**, then restart/redeploy the bot.\n\n"
+                "*(Note: Static documents in the `knowledge/` directory and the `/ask-ai` slash command work right now without this intent!)*",
+                ephemeral=True,
+            )
+            return
 
         target_channels: List[discord.TextChannel] = []
         if channel:
@@ -382,6 +413,8 @@ class AIHelpCog(commands.Cog):
         embed.add_field(name="API Status", value=client_status, inline=False)
         embed.add_field(name="Gemini Model", value=f"`{config.GEMINI_MODEL}`", inline=True)
         embed.add_field(name="AI Channel Name", value=f"`#{config.AI_HELP_CHANNEL_NAME}`", inline=True)
+        intent_status = "🟢 Active (Direct text reading enabled)" if self.bot.intents.message_content else "🟡 Disabled in Portal (Slash commands & @mentions only)"
+        embed.add_field(name="Message Content Intent", value=intent_status, inline=False)
 
         # Knowledge sources
         cached_sources = database.get_all_knowledge_cache()

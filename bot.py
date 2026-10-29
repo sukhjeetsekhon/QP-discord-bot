@@ -9,14 +9,17 @@ from cogs.hardware_tickets import TicketRequestView, TicketControlView
 from cogs.mentor_queue import MentorQueueSetupView, MentorTicketControlView
 
 # Configure required Discord intents
-intents = discord.Intents.default()
-intents.members = True          # Required for inspecting and managing member roles
-intents.guilds = True
-intents.message_content = True  # Required for reading questions in #ask-ai and syncing knowledge
+def make_intents(enable_message_content: bool = True, enable_members: bool = True) -> discord.Intents:
+    """Build discord Intents with optional privileged intents."""
+    intents = discord.Intents.default()
+    intents.members = enable_members  # Required for inspecting and managing member roles
+    intents.guilds = True
+    intents.message_content = enable_message_content  # For direct questions in #ask-ai
+    return intents
 
 
 class QPBot(commands.Bot):
-    def __init__(self):
+    def __init__(self, intents: discord.Intents):
         super().__init__(
             command_prefix="!",
             intents=intents,
@@ -77,6 +80,7 @@ class QPBot(commands.Bot):
         print(f" Staff Role: {config.STAFF_ROLE_NAME}")
         print(f" Tickets Category: {config.TICKETS_CATEGORY_NAME}")
         print(f" AI Help Channel: #{config.AI_HELP_CHANNEL_NAME} ({'Gemini Active' if config.GEMINI_API_KEY else 'No GEMINI_API_KEY'})")
+        print(f" Message Content Intent: {'Enabled' if self.intents.message_content else 'Disabled (Privileged intent fallback)'}")
         print(f" Database Path: {config.DB_PATH}")
         print("=" * 55)
 
@@ -90,9 +94,51 @@ async def main():
         )
         sys.exit(1)
 
-    bot = QPBot()
-    async with bot:
-        await bot.start(config.DISCORD_TOKEN)
+    token = config.DISCORD_TOKEN
+
+    # Tier 1: Try starting with full intents (including Message Content)
+    try:
+        bot = QPBot(intents=make_intents(enable_message_content=True, enable_members=True))
+        async with bot:
+            await bot.start(token)
+        return
+    except discord.errors.PrivilegedIntentsRequired:
+        print(
+            "\n" + "=" * 65 + "\n"
+            "⚠️ PRIVILEGED INTENT NOTICE:\n"
+            "Discord rejected connection with 'Message Content Intent' enabled\n"
+            "because it is not yet toggled ON in the Discord Developer Portal.\n\n"
+            "👉 To enable direct question answering in #ask-ai:\n"
+            "   1. Visit https://discord.com/developers/applications\n"
+            "   2. Select your Application -> Click 'Bot' in the left menu\n"
+            "   3. Under 'Privileged Gateway Intents', turn ON 'Message Content Intent'\n"
+            "   4. Click 'Save Changes'\n\n"
+            "🔄 Retrying startup with standard intents (Message Content disabled)...\n"
+            "   Note: All slash commands (/ask-ai, /budget, etc.) work normally!\n"
+            + "=" * 65 + "\n",
+            file=sys.stderr,
+        )
+
+    # Tier 2: Fallback without Message Content intent (keeps Members intent)
+    try:
+        fallback_bot = QPBot(intents=make_intents(enable_message_content=False, enable_members=True))
+        async with fallback_bot:
+            await fallback_bot.start(token)
+        return
+    except discord.errors.PrivilegedIntentsRequired:
+        print(
+            "\n" + "=" * 65 + "\n"
+            "⚠️ PRIVILEGED INTENT NOTICE:\n"
+            "Discord also rejected 'Server Members Intent'.\n"
+            "Retrying with basic intents (role synchronization may be limited)...\n"
+            + "=" * 65 + "\n",
+            file=sys.stderr,
+        )
+
+    # Tier 3: Safe minimal fallback
+    minimal_bot = QPBot(intents=make_intents(enable_message_content=False, enable_members=False))
+    async with minimal_bot:
+        await minimal_bot.start(token)
 
 
 if __name__ == "__main__":
