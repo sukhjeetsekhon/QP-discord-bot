@@ -71,19 +71,41 @@ def load_all_knowledge() -> Tuple[str, Dict[str, Any]]:
     return combined_text, metadata
 
 
+def extract_grounding_sources(response) -> List[Tuple[str, str]]:
+    """Extract web sources (title, uri) from Gemini grounding metadata if present."""
+    sources: List[Tuple[str, str]] = []
+    try:
+        if response.candidates and response.candidates[0].grounding_metadata:
+            meta = response.candidates[0].grounding_metadata
+            chunks = getattr(meta, "grounding_chunks", None) or []
+            seen_urls = set()
+            for chunk in chunks:
+                web = getattr(chunk, "web", None)
+                if web and getattr(web, "uri", None):
+                    uri = web.uri
+                    title = getattr(web, "title", None) or uri
+                    if uri not in seen_urls:
+                        seen_urls.add(uri)
+                        sources.append((title, uri))
+    except Exception as e:
+        print(f"Error parsing grounding metadata: {e}")
+    return sources
+
+
 def build_system_instruction(knowledge_base: str) -> str:
     """Construct the grounding system prompt for the Gemini model."""
     return (
         "You are the official IEEE Quarterly Projects (QP) AI Assistant for the UCSD IEEE Student Branch Discord server.\n"
-        "Your purpose is to answer questions from students, teams, and mentors about the QP program, rules, hardware budgets, lab inventory, ticketing, timelines, and technical project advice (circuits, microcontrollers, embedded firmware, soldering, PCB design).\n\n"
-        "CRITICAL RULES & GROUNDING:\n"
-        "1. Ground your answers in the provided QP Knowledge Base whenever possible.\n"
-        "2. Be concise, friendly, encouraging, and clear. Use GitHub-flavored markdown with bullet points and bold headings for readability.\n"
-        "3. Hardware Budgets: Baseline is $50.00 per team, plus an additional +$11.00 for each verified IEEE student member on the team (e.g. $61 for 1 member, $72 for 2 members, etc.).\n"
-        "4. Hardware Purchases: Handled via the '#hardware-requests' channel using the 'Request' button, which opens a private sequential ticket.\n"
-        "5. Lab Equipment: Handled in the IEEE Student Lab using /checkout and /return.\n"
-        "6. Mentorship / Help Queue: If a student needs in-person or mentor assistance with hardware debugging or design feedback, guide them to click 'Request Mentor Help / Feedback' in the #help-tickets channel.\n"
-        "7. If you do not know the answer or if the question involves subjective approval (like approving an expense or granting special budget exceptions), clearly instruct the student to contact the QP Chair or open a help ticket.\n\n"
+        "Your purpose is to answer questions from students, teams, and mentors about the QP program, rules, hardware budgets, lab inventory, ticketing, timelines, and technical engineering advice.\n\n"
+        "CRITICAL RULES & GUIDELINES:\n"
+        "1. Competition Rules & Administration: Ground your answers in the provided QP Knowledge Base whenever possible for budgets, schedules, milestone deliverables, team sizes, and purchasing policies.\n"
+        "2. Technical & Hardware Questions: For technical questions not explicitly covered in the QP Knowledge Base (e.g. microcontroller pinouts like ESP32/Arduino/RP2040, circuit schematics, sensors, I2C/SPI wiring, motor drivers, battery power, coding/debugging in C++/Python, component selection): Use your deep engineering knowledge and web search findings to provide direct, practical, and accurate guidance.\n"
+        "3. Be concise, friendly, encouraging, and clear. Use GitHub-flavored markdown with bullet points and bold headings for readability.\n"
+        "4. Hardware Budgets: Baseline is $50.00 per team, plus an additional +$11.00 for each verified IEEE student member on the team (e.g. $61 for 1 member, $72 for 2 members, etc.).\n"
+        "5. Hardware Purchases: Handled via the '#hardware-requests' channel using the 'Request' button, which opens a private sequential ticket.\n"
+        "6. Lab Equipment: Handled in the IEEE Student Lab using /checkout and /return.\n"
+        "7. Mentorship / Help Queue: If a student needs in-person assistance with hardware debugging or design feedback, guide them to click 'Request Mentor Help / Feedback' in the #help-tickets channel.\n"
+        "8. Administrative Exceptions: For decisions requiring human approval (like approving custom budget overages or granting exceptions), instruct the student to contact the QP Chair or open a help ticket.\n\n"
         f"=== OFFICIAL QP KNOWLEDGE BASE ===\n{knowledge_base}\n"
         "=== END OF KNOWLEDGE BASE ==="
     )
@@ -164,9 +186,14 @@ class AIHelpCog(commands.Cog):
             if fallback_model not in candidate_models:
                 candidate_models.append(fallback_model)
 
+        use_search = config.ENABLE_WEB_SEARCH
+        search_failed = False
         last_error = ""
+
         for model_name in candidate_models:
             try:
+                tools = [types.Tool(google_search=types.GoogleSearch())] if (use_search and not search_failed) else None
+
                 # Use non-blocking async Gemini client call
                 response = await client.aio.models.generate_content(
                     model=model_name,
@@ -174,24 +201,50 @@ class AIHelpCog(commands.Cog):
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
                         temperature=0.7,
+                        tools=tools,
                     ),
                 )
                 if response.text:
-                    return response.text
+                    reply = response.text
+                    # Append web sources if Google Search was performed
+                    sources = extract_grounding_sources(response)
+                    if sources:
+                        sources_list = "\n".join(f"• [{title}]({uri})" for title, uri in sources[:3])
+                        reply += f"\n\n🌐 **Web Sources:**\n{sources_list}"
+                    return reply
                 return "⚠️ I couldn't generate a response. Please try rephrasing your question!"
             except Exception as e:
                 error_str = str(e)
                 last_error = error_str
                 print(f"⚠️ Gemini API Error with model '{model_name}': {error_str}")
 
-                # Check if this error is permanently non-recoverable (e.g. bad API key or bad request)
+                # Check if the error is due to search grounding permissions on unpaid keys
+                if any(kw in error_str.lower() for kw in ("grounding with google search is only available", "tool is not supported", "search grounding")):
+                    if not search_failed:
+                        print("ℹ️ Search Grounding requires a billing-enabled key; falling back to built-in engineering knowledge.")
+                        search_failed = True
+                        try:
+                            # Retry immediately on the same model without the search tool
+                            response = await client.aio.models.generate_content(
+                                model=model_name,
+                                contents=contents,
+                                config=types.GenerateContentConfig(
+                                    system_instruction=system_instruction,
+                                    temperature=0.7,
+                                ),
+                            )
+                            if response.text:
+                                return response.text
+                        except Exception as retry_e:
+                            last_error = str(retry_e)
+
+                # Check if this error is permanently non-recoverable (e.g. invalid API key)
                 is_non_recoverable = any(
                     kw in error_str.lower()
-                    for kw in ("api_key_invalid", "permission_denied", "unauthenticated", "invalid_argument", "401", "403")
+                    for kw in ("api_key_invalid", "unauthenticated", "invalid_argument", "401")
                 )
                 if not is_non_recoverable:
                     # Transient error: 503 (high demand), 429 (rate limit), 404 (unavailable), 500 (server)
-                    # Automatically try next candidate model in cascade
                     continue
                 break
 
@@ -440,6 +493,8 @@ class AIHelpCog(commands.Cog):
         embed.add_field(name="AI Channel Name", value=f"`#{config.AI_HELP_CHANNEL_NAME}`", inline=True)
         intent_status = "🟢 Active (Direct text reading enabled)" if self.bot.intents.message_content else "🟡 Disabled in Portal (Slash commands & @mentions only)"
         embed.add_field(name="Message Content Intent", value=intent_status, inline=False)
+        web_search_status = "🟢 Enabled (Live Google Search Grounding)" if config.ENABLE_WEB_SEARCH else "⚪ Disabled"
+        embed.add_field(name="Web Search", value=web_search_status, inline=True)
 
         # Knowledge sources
         cached_sources = database.get_all_knowledge_cache()
