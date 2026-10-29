@@ -20,7 +20,7 @@ The AI can read static documentation files (such as rules, schedules, BOM guides
    - Leadership can run `/sync-ai-knowledge` to scrape and index historical messages from `#announcements`, `#faq`, `#resources`, or any specific channel.
    - Strips out bot commands and spam, storing clean transcripts in SQLite.
 4. **Slash Command (`/ask-ai`)**:
-   - Students can also query the AI from any channel using `/ask-ai question:` with an option for private (ephemeral) replies.
+   - Students can also query the AI using `/ask-ai question:` with an option for private (ephemeral) replies. The command is strictly restricted to the `#ask-ai` channel to keep other channels free of bot clutter.
 5. **Completely Free Tier**:
    - Google AI Studio provides a free Gemini API key with no credit card required.
    - Rate limit: 15 requests per minute and 1,500 requests per day (more than enough for a university competition).
@@ -124,6 +124,6 @@ To feed past announcements or Q&A into the bot's memory:
 
 | Command | Permission | Description |
 |---|---|---|
-| `/ask-ai question: [private:]` | Everyone | Ask the QP AI assistant a question from anywhere in the server. |
+| `/ask-ai question: [private:]` | Everyone | Ask the QP AI assistant a question directly in `#ask-ai`. |
 | `/ai-status` | Everyone | Check whether the Gemini API is active, loaded document count, and synced channels. |
 | `/sync-ai-knowledge [channel:] [limit:]` | Leadership (`QP Chair`, `Mentor`, `Officer`) | Scrapes and indexes Discord channel messages into the AI knowledge cache. |

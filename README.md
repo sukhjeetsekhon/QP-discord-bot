@@ -66,7 +66,7 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * Scrapes and indexes historical Discord messages via `/sync-ai-knowledge`.
   * Provides conversational answers with context memory for follow-up questions.
 * Commands:
-  * `/ask-ai question: [private:]`: Query the AI from any channel.
+  * `/ask-ai question: [private:]`: Query the AI directly in the `#ask-ai` channel.
   * `/sync-ai-knowledge [channel:] [limit:]`: Index Discord channel messages into the knowledge base (Leadership only).
   * `/ai-status`: View API health, loaded documents, and synced channel counts.
 * See the full **[AI Help Channel Guide](docs/AI_HELP_GUIDE.md)** for details.

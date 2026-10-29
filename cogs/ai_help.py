@@ -359,15 +359,14 @@ class AIHelpCog(commands.Cog):
         if message.author.bot or message.webhook_id:
             return
 
-        # 2. Check if this is the AI help channel or the bot was mentioned
+        # 2. Strictly restrict to the dedicated AI help channel
         channel_name = message.channel.name.lower() if isinstance(message.channel, (discord.TextChannel, discord.Thread)) else ""
         is_ai_channel = (
             channel_name == config.AI_HELP_CHANNEL_NAME.lower()
             or (config.AI_HELP_CHANNEL_ID is not None and message.channel.id == config.AI_HELP_CHANNEL_ID)
         )
-        is_bot_mentioned = bool(self.bot.user and self.bot.user in message.mentions)
 
-        if not is_ai_channel and not is_bot_mentioned:
+        if not is_ai_channel:
             return
 
         # 3. Clean content and handle mentions
@@ -428,6 +427,27 @@ class AIHelpCog(commands.Cog):
         question: str,
         private: bool = False,
     ):
+        # Enforce that /ask-ai can only be used in the dedicated #ask-ai channel
+        channel = interaction.channel
+        channel_name = channel.name.lower() if isinstance(channel, (discord.TextChannel, discord.Thread, discord.VoiceChannel)) else ""
+        is_ai_channel = (
+            channel_name == config.AI_HELP_CHANNEL_NAME.lower()
+            or (config.AI_HELP_CHANNEL_ID is not None and channel and channel.id == config.AI_HELP_CHANNEL_ID)
+        )
+
+        if not is_ai_channel:
+            ai_ch_mention = f"#{config.AI_HELP_CHANNEL_NAME}"
+            if interaction.guild:
+                found_ch = discord.utils.get(interaction.guild.text_channels, name=config.AI_HELP_CHANNEL_NAME.lower())
+                if found_ch:
+                    ai_ch_mention = found_ch.mention
+
+            await interaction.response.send_message(
+                f"❌ The `/ask-ai` command can only be used in the {ai_ch_mention} channel.\nPlease head over to {ai_ch_mention} to ask your question!",
+                ephemeral=True,
+            )
+            return
+
         await interaction.response.defer(ephemeral=private)
 
         answer = await self.generate_ai_response(question.strip())
