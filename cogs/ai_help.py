@@ -160,7 +160,7 @@ class AIHelpCog(commands.Cog):
 
         # Determine candidate models with automatic fallback
         candidate_models = [config.GEMINI_MODEL]
-        for fallback_model in ("gemini-3.8-flash", "gemini-3.5-flash-lite"):
+        for fallback_model in ("gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite"):
             if fallback_model not in candidate_models:
                 candidate_models.append(fallback_model)
 
@@ -183,13 +183,21 @@ class AIHelpCog(commands.Cog):
                 error_str = str(e)
                 last_error = error_str
                 print(f"⚠️ Gemini API Error with model '{model_name}': {error_str}")
-                # If 404 (model not found / deprecated) or 429 quota, try next fallback candidate
-                if any(kw in error_str.lower() for kw in ("404", "not found", "no longer available", "deprecated", "resourceexhausted", "quota", "429")):
+
+                # Check if this error is permanently non-recoverable (e.g. bad API key or bad request)
+                is_non_recoverable = any(
+                    kw in error_str.lower()
+                    for kw in ("api_key_invalid", "permission_denied", "unauthenticated", "invalid_argument", "401", "403")
+                )
+                if not is_non_recoverable:
+                    # Transient error: 503 (high demand), 429 (rate limit), 404 (unavailable), 500 (server)
+                    # Automatically try next candidate model in cascade
                     continue
-                # For non-recoverable errors (e.g. invalid API key), break early
                 break
 
-        if "ResourceExhausted" in last_error or "quota" in last_error.lower() or "429" in last_error:
+        if any(kw in last_error.lower() for kw in ("503", "unavailable", "high demand", "overloaded")):
+            return "⚠️ The AI service is currently experiencing high demand. Please try asking again in a moment!"
+        if any(kw in last_error.lower() for kw in ("resourceexhausted", "quota", "429")):
             return "⚠️ The free Gemini API rate limit was momentarily reached. Please wait a minute and try again!"
         return f"⚠️ An error occurred while communicating with the AI service: `{last_error[:150]}`"
 
