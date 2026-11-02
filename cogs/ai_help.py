@@ -330,14 +330,7 @@ class AIHelpCog(commands.Cog):
                             ),
                         )
                         if fallback_resp.text:
-                            reply_text = clean_latex(fallback_resp.text)
-                            if any(kw in error_str.lower() for kw in ("quota", "429", "resource_exhausted")):
-                                reply_text += (
-                                    "\n\n> 🌐 *Live Web Search Note: Google requires a linked billing account on your "
-                                    "Google AI Studio project to unlock Google Search Grounding (which includes 5,000 free searches/month). "
-                                    "Answered using Gemini's built-in training knowledge.*"
-                                )
-                            return reply_text
+                            return clean_latex(fallback_resp.text)
                     except Exception as retry_e:
                         error_str = str(retry_e)
                         last_error = error_str
@@ -618,12 +611,8 @@ class AIHelpCog(commands.Cog):
         embed.add_field(name="AI Channel Name", value=f"`#{config.AI_HELP_CHANNEL_NAME}`", inline=True)
         intent_status = "🟢 Active (Direct text reading enabled)" if self.bot.intents.message_content else "🟡 Disabled in Portal (Slash commands & @mentions only)"
         embed.add_field(name="Message Content Intent", value=intent_status, inline=False)
-        web_search_status = (
-            "🟢 Enabled in Config (Requires linked billing on AI Studio project for search quota)"
-            if config.ENABLE_WEB_SEARCH
-            else "⚪ Disabled"
-        )
-        embed.add_field(name="Web Search", value=web_search_status, inline=False)
+        web_search_status = "🟢 Enabled" if config.ENABLE_WEB_SEARCH else "⚪ Disabled"
+        embed.add_field(name="Web Search", value=web_search_status, inline=True)
 
         # Knowledge sources
         cached_sources = database.get_all_knowledge_cache()
