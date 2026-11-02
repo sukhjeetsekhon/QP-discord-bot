@@ -17,3 +17,4 @@ This directory contains specifications, question guides, and templates for offic
 - **QP Participant Application Form** (`qp_application_form.md`): Pre-quarter applicant questionnaire for experience levels, teammate preferences, and project track interests.
 - **Hardware & Inventory Request Form** (`qp_inventory_borrow_form.md`): Google Form companion for borrowing shared tools and parts from the IEEE Project Space.
 - **Showcase & Devpost Submission Guide** (`qp_showcase_submission_form.md`): Final project links, video demos, and project abstracts for judging.
+

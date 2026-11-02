@@ -28,15 +28,19 @@ This document is a complete, ready-to-use template for building your **QP Milest
 
 ---
 
-### Question 1.1: Milestone Selection
-- **Question:** Which milestone are you submitting for?
-- **Question Type:** `Dropdown` or `Multiple Choice`
+### Question 1.1: Milestone / Check-in Period
+- **Question:** Milestone / Progress Check-in
+- **Question Type:** `Dropdown` (or `Short Answer`)
 - **Required:** ✅ Yes
+- **Description / Helper Text:** Which milestone or progress check-in are you submitting for?
 - **Options:**
-  - `Milestone 1 (Early Prototyping & Parts Check — ~Week 4)`
-  - `Milestone 2 (Subsystem Integration & Firmware Testing — ~Week 6)`
-  - `Milestone 3 (Pre-Showcase Feature Freeze & Polish — ~Week 8)`
-  - `Other / Ad-hoc Check-in`
+  - `Milestone 1`
+  - `Milestone 2`
+  - `Milestone 3`
+  - `Milestone 4`
+  - `Mid-Quarter Check-in`
+  - `General Progress Update`
+  - `Other`
 
 ---
 
@@ -185,11 +189,76 @@ This document is a complete, ready-to-use template for building your **QP Milest
 
 ---
 
+## 📑 Section 5: Program Experience & Feedback
+
+*Help the QP Chairs improve your experience by sharing how things are going so far.*
+
+---
+
+### Question 5.1: Overall QP Experience So Far
+- **Question:** How has your overall experience with Quarterly Projects been so far?
+- **Question Type:** `Linear Scale` (1 to 5)
+- **Required:** ✅ Yes
+- **Scale Labels:**
+  - `1`: Frustrating / unenjoyable
+  - `3`: Neutral / alright
+  - `5`: Great / loving it
+
+---
+
+### Question 5.2: Stress & Workload Level
+- **Question:** How stressful has the QP workload been alongside your classes, midterms, and other commitments?
+- **Question Type:** `Linear Scale` (1 to 5)
+- **Required:** ✅ Yes
+- **Scale Labels:**
+  - `1`: Very manageable / low stress
+  - `3`: Moderate stress / manageable with planning
+  - `5`: Extremely stressful / overwhelmed
+
+---
+
+### Question 5.3: Discord Server & Helper Bot Experience
+- **Question:** How has your experience been using the QP Discord server and tools (channels, #ask-ai bot, request tickets, workspaces)?
+- **Question Type:** `Linear Scale` (1 to 5)
+- **Required:** ✅ Yes
+- **Scale Labels:**
+  - `1`: Confusing / hard to use
+  - `3`: Good / gets the job done
+  - `5`: Smooth / very helpful
+
+---
+
+### Question 5.4: Access to Information & Communication
+- **Question:** How easy has it been to get announcements, guidelines, and answers to your questions about QP?
+- **Question Type:** `Linear Scale` (1 to 5)
+- **Required:** ✅ Yes
+- **Scale Labels:**
+  - `1`: Difficult to find answers / unclear
+  - `3`: Usually clear / fine
+  - `5`: Very easy to find / transparent
+
+---
+
+### Question 5.5: Suggestions & How Leadership Can Support You
+- **Question:** Any comments, feedback, concerns, or ideas on how the QP Chairs and Mentors can better support you?
+- **Question Type:** `Paragraph`
+- **Required:** ⚪ Optional
+- **Description / Helper Text:**
+  ```text
+  Feel free to share any feedback on workshops, workathons, lab access, mentor availability, or anything else you'd like us to know.
+  ```
+
+---
+
 ## 💡 Quick Tips for the QP Chair
 
 1. **Viewing At-Risk Teams in Google Sheets:**
    - Link your Google Form to a Google Spreadsheet (**Responses** tab > **Link to Sheets**).
    - Add conditional formatting on the **Showcase Confidence Level** column to highlight scores of `1` or `2` in red so you can reach out immediately on Discord.
+   - Monitor the **Stress & Workload Level** column to spot teams nearing burnout before midterms or finals.
 2. **Flagging Mentor Requests:**
    - Filter Question 3.1 for any response other than "None" or "No".
    - Tag the team's private channel (`#team-X`) or notify mentors to drop by during Open Access Hours or Workathons.
+3. **Evaluating Server & Information Feedback:**
+   - Review Questions 5.3 and 5.4 to see if channels need better pinning, announcements need more visibility, or if students want more Discord bot features.
+
