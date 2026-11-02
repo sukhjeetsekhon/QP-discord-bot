@@ -25,8 +25,8 @@ EVENT_SYSTEM_INSTRUCTION = (
     "CRITICAL RULES & FORMAT REQUIREMENTS:\n"
     "1. Event Type: Must ALWAYS be 'Projects'\n"
     "2. Department: Must ALWAYS be 'Projects'\n"
-    "3. Event Code: MUST BE SHORT, UPPERCASE, AND QUICK TO TYPE (6 to 10 characters max, e.g. 'QP-SOLDER', 'QP-WORK1', 'QP-PCB', 'QP-DEMO', 'QP-KICK'). Hundreds of students will need to type this code in seconds on their phones for attendance.\n"
-    "4. Event Description: Write an engaging, clear 2-3 sentence description suitable for marketing and operations approval.\n"
+    "3. Event Code: Generate a clear, structured uppercase code (e.g. 'QP-WINTER-KICKOFF-26', 'QP-PCB-SOLDER-26', 'QP-WORKATHON-W5-26', 'QP-PROJECT-DEMO-26'). Allow up to 25-30 characters so quarter, year, and event topic are clearly identifiable for attendance tracking and university records.\n"
+    "4. Event Description: Write a formal, professional description suitable for submission to the university engineering department for room reservation approvals and official academic records. Do NOT use casual social media hype, promotional slang, marketing buzzwords, or exclamation marks. Clearly and objectively state the educational and technical purpose of the event, the student engineering activities involved (e.g. hands-on soldering, circuit prototyping, embedded software debugging, technical design reviews), and the planned room and equipment utilization.\n"
     "5. Location: Default to 'IEEE Project Space (Jacobs Hall 4309)' if not specified by the user.\n"
     "6. Event Date: Format clearly (e.g. 'Wednesday, November 12, 2026').\n"
     "7. Start Time & End Time: Standard format (e.g. '6:00 PM' and '8:00 PM').\n"
@@ -58,21 +58,21 @@ EVENT_SYSTEM_INSTRUCTION = (
 
 def fallback_event_parser(user_prompt: str) -> Dict[str, str]:
     """Fallback generator in case Gemini API is unreachable or not configured."""
-    year = datetime.now().year
+    year = datetime.now().year % 100
     prompt_lower = user_prompt.lower()
 
     # Determine event code
     code = f"QP-EVT-{year}"
     if "solder" in prompt_lower:
-        code = f"QP-SOLDER"
+        code = f"QP-PCB-SOLDER-{year}"
     elif "workathon" in prompt_lower or "work" in prompt_lower:
-        code = f"QP-WORK"
+        code = f"QP-WORKATHON-{year}"
     elif "kickoff" in prompt_lower:
-        code = f"QP-KICK"
+        code = f"QP-WINTER-KICKOFF-{year}"
     elif "showcase" in prompt_lower or "demo" in prompt_lower:
-        code = f"QP-DEMO"
+        code = f"QP-PROJECT-DEMO-{year}"
     elif "pcb" in prompt_lower:
-        code = f"QP-PCB"
+        code = f"QP-PCB-DESIGN-{year}"
 
     # Check for food / AS logo requirement
     has_food = any(w in prompt_lower for w in ("food", "pizza", "snack", "boba", "as funding", "budget", "eat"))
@@ -89,14 +89,18 @@ def fallback_event_parser(user_prompt: str) -> Dict[str, str]:
 
     return {
         "event_name": user_prompt.split(",")[0].strip().title() or "QP Technical Event",
-        "event_description": f"IEEE Quarterly Projects hands-on session: {user_prompt.strip()}",
+        "event_description": (
+            f"Quarterly Projects engineering technical session: {user_prompt.strip()}. "
+            "UCSD student project teams will participate in hands-on development, prototyping, "
+            "and peer collaboration under the supervision of the IEEE Projects leadership team."
+        ),
         "event_type": "Projects",
         "department": "Projects",
         "location": loc,
         "event_date": datetime.now().strftime("%A, %B %d, %Y"),
         "start_time": "6:00 PM",
         "end_time": "8:00 PM",
-        "event_code": code.upper()[:10],
+        "event_code": code.upper()[:30],
         "flyers_needed": "No",
         "graphics_needed": "Yes (Instagram 1:1, Discord banner)",
         "photography_needed": "Yes" if "showcase" in prompt_lower or "kickoff" in prompt_lower else "No",
@@ -141,8 +145,14 @@ async def generate_event_details(user_prompt: str) -> Dict[str, str]:
                 for k in required_keys:
                     if k not in data or not data[k]:
                         data[k] = "N/A"
-                # Keep event code concise (max 10 chars, uppercase)
-                data["event_code"] = re.sub(r"[^A-Z0-9-]", "", str(data["event_code"]).upper())[:10]
+                    elif isinstance(data[k], list):
+                        data[k] = ", ".join(str(item) for item in data[k])
+                    elif isinstance(data[k], bool):
+                        data[k] = "Yes" if data[k] else "No"
+                    else:
+                        data[k] = str(data[k]).strip()
+                # Keep event code clean (alphanumeric and dashes, max 30 chars, uppercase)
+                data["event_code"] = re.sub(r"[^A-Z0-9-]", "", str(data["event_code"]).upper())[:30]
                 return data
         except Exception as e:
             print(f"⚠️ Gemini event generation error on {model_name}: {e}")
@@ -214,9 +224,9 @@ class EventRequestEditModal(discord.ui.Modal, title="Edit Event Request Details"
             required=True,
         )
         self.code_input = discord.ui.TextInput(
-            label="Event Code (Short & Quick to Type)",
+            label="Event Code (e.g. QP-WINTER-KICKOFF-26)",
             default=data.get("event_code", ""),
-            max_length=12,
+            max_length=30,
             required=True,
         )
         self.loc_input = discord.ui.TextInput(
@@ -246,7 +256,7 @@ class EventRequestEditModal(discord.ui.Modal, title="Edit Event Request Details"
 
     async def on_submit(self, interaction: discord.Interaction):
         self.data["event_name"] = self.name_input.value.strip()
-        self.data["event_code"] = self.code_input.value.strip().upper()[:10]
+        self.data["event_code"] = re.sub(r"[^A-Z0-9-]", "", self.code_input.value.strip().upper())[:30]
         self.data["location"] = self.loc_input.value.strip()
         self.data["expected_attendance"] = self.att_input.value.strip()
 

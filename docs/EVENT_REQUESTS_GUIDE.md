@@ -26,14 +26,14 @@ The bot automatically drafts all 14 required fields, packages them into a clean 
 | # | Field Name | Description & Automation Rules |
 |---|---|---|
 | 1 | **Event Name** | Engaging, title-cased event title (e.g. *PCB Design & Soldering Workshop*). |
-| 2 | **Event Description** | Polished 2–3 sentence marketing description for social media and operations review. |
+| 2 | **Event Description** | Formal, professional description outlining technical/educational purpose, hands-on student engineering activities, and room utilization for engineering department room reservation approval and official academic records. |
 | 3 | **Event Type** | Automatically locked to **`Projects`**. |
 | 4 | **Department** | Automatically locked to **`Projects`**. |
 | 5 | **Location** | Extracted from prompt or defaults to *IEEE Project Space (Jacobs Hall 4309)*. |
 | 6 | **Event Date** | Fully formatted date (e.g. *Wednesday, November 12, 2026*). |
 | 7 | **Start Time** | Start time (e.g. *6:00 PM*). |
 | 8 | **End Time** | End time (e.g. *8:00 PM*). |
-| 9 | **Event Code** | **Short, uppercase, quick-to-type code** (6–10 characters max, e.g. `QP-SOLDER`, `QP-WORK1`, `QP-PCB`, `QP-DEMO`). Optimized so tens of students can quickly type it on mobile for sign-in within seconds. |
+| 9 | **Event Code** | Uppercase structured event code up to 25–30 characters (e.g. `QP-WINTER-KICKOFF-26`, `QP-PCB-SOLDER-26`, `QP-WORKATHON-W5-26`). Structured so quarter, year, and technical topic are clearly identified for attendance tracking and university records. |
 | 10 | **Flyers Needed** | Defaults to `No` unless physical on-campus poster distribution is requested. |
 | 11 | **Graphics Needed** | Defaults to `Yes (Instagram 1:1, Discord 16:9, Website)` for marketing. |
 | 12 | **Photography Needed** | `Yes` (submits photos within 48 hrs) or `No`. |
@@ -62,7 +62,7 @@ Below the preview, four action buttons are available:
    - Posts the finalized event package to the designated `#event-requests` channel (creates the channel automatically if it doesn't exist yet).
    - Serves as a persistent historical record for you and the Vice Chair of Operations.
 2. **✏️ Edit Details**:
-   - Opens an interactive Discord popup modal allowing you to tweak the Event Name, Event Code, Location, Date/Time, and Attendance before publishing.
+   - Opens an interactive Discord popup modal allowing you to tweak the Event Name, Event Code (up to 30 characters), Location, Date/Time, and Attendance before publishing.
 3. **🔄 Regenerate**:
    - Re-runs the AI generator if you want a fresh variation.
 4. **🗑️ Dismiss**:

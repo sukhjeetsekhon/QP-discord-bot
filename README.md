@@ -74,7 +74,7 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
 ### 7. 📋 Operations Event Request Generator (`/request-event`)
 * Streamlines generating event request packages for the **IEEE Vice Chair of Operations**.
 * Enter a quick prompt (e.g. `/request-event prompt: "PCB Soldering Workshop on Nov 12 6-8pm with pizza"`).
-* Automatically drafts all 14 required fields (Name, Description, Type, Department, Location, Date, Times, short sign-in Event Code, Flyers, Graphics, Photography, Required Logos like `IEEE, AS`, Attendance).
+* Automatically drafts all 14 required fields (Name, formal room-reservation Description, Type, Department, Location, Date, Times, structured Event Code (e.g. QP-WINTER-KICKOFF-26), Flyers, Graphics, Photography, Required Logos like `IEEE, AS`, Attendance).
 * Provides an interactive private preview with 1-click **Publish to #event-requests**, **Edit Details Modal**, and a copy-paste code block for the Google Form.
 * Strictly restricted to the **`QP Chair`** role and Administrators.
 * See the full **[Event Requests Guide](docs/EVENT_REQUESTS_GUIDE.md)** for details.
