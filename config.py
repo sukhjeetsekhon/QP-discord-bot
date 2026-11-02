@@ -17,6 +17,7 @@ STAFF_ROLES = ["QP Chair", "Mentor", "Officer"]
 TICKETS_CATEGORY_NAME = os.getenv("TICKETS_CATEGORY_NAME", "Hardware Requests")
 MENTOR_CATEGORY_NAME = os.getenv("MENTOR_CATEGORY_NAME", "Help Requests")
 AI_HELP_CHANNEL_NAME = os.getenv("AI_HELP_CHANNEL_NAME", "ask-ai")
+EVENT_REQUESTS_CHANNEL_NAME = os.getenv("EVENT_REQUESTS_CHANNEL_NAME", "event-requests")
 
 # Optional: Specific Channel ID for the AI help channel
 _ai_channel_id_env = os.getenv("AI_HELP_CHANNEL_ID")

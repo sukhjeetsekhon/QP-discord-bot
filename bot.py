@@ -50,6 +50,7 @@ class QPBot(commands.Bot):
             "cogs.mentor_queue",
             "cogs.inventory",
             "cogs.ai_help",
+            "cogs.event_requests",
         ]
         for ext in initial_extensions:
             try:

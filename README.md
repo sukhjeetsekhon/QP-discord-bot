@@ -71,6 +71,14 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * `/ai-status`: View API health, loaded documents, and synced channel counts.
 * See the full **[AI Help Channel Guide](docs/AI_HELP_GUIDE.md)** for details.
 
+### 7. 📋 Operations Event Request Generator (`/request-event`)
+* Streamlines generating event request packages for the **IEEE Vice Chair of Operations**.
+* Enter a quick prompt (e.g. `/request-event prompt: "PCB Soldering Workshop on Nov 12 6-8pm with pizza"`).
+* Automatically drafts all 14 required fields (Name, Description, Type, Department, Location, Date, Times, short sign-in Event Code, Flyers, Graphics, Photography, Required Logos like `IEEE, AS`, Attendance).
+* Provides an interactive private preview with 1-click **Publish to #event-requests**, **Edit Details Modal**, and a copy-paste code block for the Google Form.
+* Strictly restricted to the **`QP Chair`** role and Administrators.
+* See the full **[Event Requests Guide](docs/EVENT_REQUESTS_GUIDE.md)** for details.
+
 ---
 
 ## 🚀 Setup & Installation
