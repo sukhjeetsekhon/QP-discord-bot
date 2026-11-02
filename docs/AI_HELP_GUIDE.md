@@ -49,6 +49,10 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 # Channel name for AI Q&A (default: ask-ai)
 AI_HELP_CHANNEL_NAME=ask-ai
+
+# Optional: Enable live Google Search Grounding (default: false)
+# NOTE: Google requires a linked billing account on your Google AI Studio project to unlock the 5,000 free searches/month.
+ENABLE_WEB_SEARCH=true
 ```
 
 ### Production on Azure Container Apps
