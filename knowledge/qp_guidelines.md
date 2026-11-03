@@ -30,23 +30,13 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
 
 ---
 
-## 4. 💰 Budgets & Hardware Procurement
-- **Base Budget**: Every team starts with a baseline budget of **$50.00**.
-- **IEEE Member Bonus**: Teams receive an additional **+$11.00** for each verified IEEE student member on the team.
-  - 0 IEEE members: $50.00 total budget
-  - 1 IEEE member: $61.00 total budget
-  - 2 IEEE members: $72.00 total budget
-  - 3 IEEE members: $83.00 total budget
-  - 4 IEEE members: $94.00 total budget
-  - The QP Chair verifies active IEEE membership and sets the bonus via `/budget-ieee-bonus`.
-- **How to Order Hardware**:
-  1. Go to the `#hardware-requests` (or tickets) channel.
-  2. Click the **"Request"** button.
-  3. A private ticket channel (`request-1`, `request-2`, etc.) is generated for your team.
-  4. Post the links, part numbers, quantity, and total cost of the components your team needs.
-  5. A QP Chair or Mentor reviews the request and clicks **Approve Request** (deducting the amount from your team's budget), **Mark Ordered 📦**, and **Mark Arrived 📍**.
-  6. When parts arrive, pick them up in the **IEEE Student Lab**.
- For Fall 2026, the budgeting changed, so teams don't get individual funding. The QP chair will purchase common items for all teams to share amongst themselves. Teams are still able to make requests for what items they will need and the QP chair will check which common parts to buy in bulk for all teams to share.
+## 4. 💰 Budgets & Hardware Procurement (Fall 2026 Update)
+- **Fall 2026 Policy — No Individual Team Budgets**: Teams do **not** have an individual budget this quarter.
+- **Shared Bulk Components**: The QP Chair has already allocated and spent the budget purchasing common parts in bulk for all teams to share in the IEEE Project Space.
+- **Out-of-Pocket Purchases**: If your team requires specific components not covered by the shared stock, you must purchase them out-of-pocket (spend your own money). Individual team purchases are not reimbursed.
+- **Software & API Costs**: Small API costs, cloud subscriptions, and software licenses are **not covered** and **cannot be reimbursed**.
+- **Remaining Budget**: The only remaining budget is strictly reserved for the end-of-quarter **prize funds**.
+- **Historical Baseline (For Reference)**: In prior quarters, teams received a base budget of $50.00 plus $11.00 per verified IEEE member. This has been replaced for Fall 2026 by the shared bulk component pool.
 ---
 
 ## 5. 📦 Lab Inventory & Tool Checkouts
@@ -76,8 +66,20 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
 
 ---
 
-## 7. ⚡ Lab Safety Rules
+## 7. ⚡ Lab Safety & Battery Rules
 - **Soldering**: Always solder in designated ventilation areas with safety glasses. Never leave hot soldering irons unattended.
-- **Power & Batteries**: Double-check polarity (VCC vs GND) before powering circuits. Do not short-circuit or charge LiPo batteries unattended.
+- **LiPo & Battery Safety**: There are no special bans or rules against using LiPo batteries, but students **must follow standard battery safety practices**:
+  - Never charge LiPo batteries unattended or overnight.
+  - Always use a dedicated balance charger configured for the correct cell count and chemistry.
+  - Charge and store batteries on non-flammable surfaces or inside a flame-retardant LiPo bag.
+  - Inspect batteries before and after use; do not charge or discharge a swollen, puffed, or punctured battery.
+  - Double-check polarity (VCC vs. GND) before powering microcontrollers or motor drivers.
 - **Cleanliness**: Always return borrowed lab equipment to its designated storage drawer or bin.
+
+---
+
+## 8. 📅 Events, Workathons, & Showcase
+- **Workathons (Fall 2026)**: There are **no more workathons for Fall Quarter 2026** due to university room scheduling conflicts and logistics. Teams are encouraged to meet on their own or utilize the IEEE Project Space during Open Access Hours.
+- **End-of-Quarter Showcase**: The date and location for the final showcase are **confirmed**. The QP Chair will officially announce the details this weekend (Saturday or Sunday).
+- **Milestones 1 & 2**: These are progress reports designed to check in on team progress, surface blockers early, and push teams to start working on their projects early.
 

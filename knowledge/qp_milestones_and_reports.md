@@ -11,11 +11,13 @@ Milestone reports are short, mandatory check-ins submitted by each team via Goog
 Their primary purpose is to:
 1. **Track Technical Progress**: Help the QP Chairs and Mentors see what each team has built, wired, soldered, or coded.
 2. **Surface Blockers Early**: Identify teams stuck on technical issues (circuit bugs, firmware errors, missing parts) before it's too late.
-3. **Connect Teams with Mentors**: Ensure struggling teams receive hands-on assistance during Workathons, Open Access Hours, or in their private Discord help channels.
+3. **Connect Teams with Mentors**: Ensure struggling teams receive hands-on assistance during Open Access Hours or in their private Discord help channels (Note: Fall 2026 workathons are cancelled due to room scheduling conflicts).
 4. **Monitor Team Health & Well-being**: Track stress levels, teammate communication, and ensure the workload remains manageable alongside exams.
 5. **Collect Participant Feedback**: Gather real-time feedback on how easy it is to find information, how the Discord server and bot tools are working, and how leadership can improve the quarter.
 
 > [!NOTE]
+> **What is Expected for Milestones 1 and 2?**
+> Milestones 1 and 2 are straightforward **progress reports**. Their goal is to let the QP Chair see how teams are doing, check team health, and push teams to start actively working on their projects early in the quarter.
 > Reporting difficulties, technical hurdles, or scaling down your original proposal scope will **never** negatively affect your grading. Engineering is iterative, and pivots are expected!
 
 ---

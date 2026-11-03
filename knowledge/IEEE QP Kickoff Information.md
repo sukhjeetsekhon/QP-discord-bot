@@ -30,7 +30,7 @@ The Project Proposal is a starting point for your team and your project. It shou
 
 After submitting your project proposal, you and your team will be mostly working independently from the QP management. It will now be your team's responsibility to manage work meetings, research technical information, and make progress.
 
-The QP chairs will host events, like "Workathons" and technical workshops, to help in-person, talk to teams about their progress, and have teams talk to each other about ideas.
+The QP chairs host technical events to help in-person, talk to teams about their progress, and have teams talk to each other about ideas. (Note: For Fall 2026, workathons are cancelled due to university room scheduling conflicts and other logistical issues. Teams can still receive in-person help during Open Access Hours at the IEEE Project Space).
 
 There will also be milestone reports to check in with teams and make sure that everything is going smoothly, check what teams need, requesting help, or reporting issues.
 
@@ -70,9 +70,14 @@ Teams are allowed to ask other teams for advice or ask how another team designed
 
 There is no physical size restriction to your project. You can make it the size of a car if you want, and you can make it microscopic too. Make sure to be reasonable with how much time you're willing to spend and your teammates' time too.
 
-There is a budget restriction for each team. Each team gets \$50 of budget from IEEE to spend on hardware and parts. In addition to the budget rule, for each team member in a given team that is an IEEE member, they get an additional \$11 added to your budget (IEEE annual membership fee is about \$32.00 and you get other benefits from the IEEE organization). If your team does not show up to the showcase, then you will not get reimbursed for any of your budget.
+There is a budget restriction for each team. In traditional quarters, each team gets \$50 of budget from IEEE to spend on hardware and parts, plus \$11 for each verified IEEE student member.
 
-You can spend money out-of-pocket, but you will not get reimbursed beyond the \$50 for your team. Please do not spend too much money out-of-pocket. There is no restriction on it, but I do not want someone dumping hundreds of dollars into their project and unfairly competing against other teams who cannot spend too much money. If your team wants to spend lots of money on their project, then I recommend making it a personal project and reaching out to the QP chair for further information.
+**(Fall 2026 Budget Policy Update)**:
+For Fall 2026, teams do **not** have an individual budget. The QP Chair has already allocated and spent the budget on shared common components in bulk for all teams to use in the IEEE Project Space.
+- Any additional parts needed must be purchased out-of-pocket (spending your own money; no reimbursement).
+- Small API and software costs are **not** covered and cannot be reimbursed.
+- The only remaining budget is reserved for the final showcase **prize funds**.
+- Please do not dump hundreds of dollars out-of-pocket into your project to keep the competition fair and beginner-friendly.
 
 ## Are there rules on AI?
 
