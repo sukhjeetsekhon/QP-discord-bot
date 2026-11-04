@@ -48,8 +48,18 @@ This document contains answers to frequently asked questions regarding the Fall 
 • **No More Workathons:** There are **no more workathons scheduled for Fall Quarter 2026** due to university room scheduling conflicts and other logistical issues.
 • **Where to Work:**
   - Teams should coordinate their own work sessions remotely or on campus.
-  - Teams can work in the **IEEE Project Space (Jacobs Hall 4309)** during **Open Access Hours (OAH)** under officer supervision. Check the IEEE UCSD website or Discord for current OAH times.
+  - Teams can work in the **IEEE Project Space (Jacobs Hall 4309)** during **Open Access Hours (OAH)** under officer supervision.
   - Campus makerspaces (EnVision Center, DIB) are also great places for project teams to meet.
+
+### What are the Open Access Hours (OAH) for the IEEE Project Space?
+• **Description:** "Officers host drop-in hours in Project Space. Use the calendar to see who is there and when."
+• **Live Calendar:** Check https://ieeeatucsd.org/join for the live calendar and officer roster.
+• **Location:** IEEE Project Space (Jacobs Hall 4309, 4th Floor).
+• **Weekly Schedule:**
+  - **Monday:** 11:00 AM – 1:00 PM (Ridhi - VC Events), 3:00 PM – 5:00 PM (Sukhjeet - QP Chair), 5:30 PM – 7:30 PM (Nishant - Social Chair)
+  - **Tuesday:** 11:00 AM – 1:00 PM (Aiden - President), 3:00 PM – 5:00 PM (Anthony - Design Chair), 5:00 PM – 7:00 PM (Daniel H - Marketing Chair), 5:00 PM – 8:00 PM (Ki - Webmaster)
+  - **Wednesday:** 10:00 AM – 12:00 PM (Hannah - VC Operations)
+  - **Thursday:** 10:00 AM – 12:00 PM (Paul - Social Chair), 12:45 PM – 1:45 PM (Ki - Webmaster), 2:00 PM – 4:00 PM (Cameryn - VP Internal), 3:30 PM – 5:30 PM (Daniel Xu - VC Operations)
 
 ---
 
@@ -78,3 +88,4 @@ This document contains answers to frequently asked questions regarding the Fall 
 • **Showcase Date:** Confirmed! The QP Chair will release the date and location this weekend (Saturday or Sunday).
 • **Workathons:** There are no more workathons for Fall Quarter 2026 due to scheduling conflicts.
 • **LiPo Batteries:** No specific QP ban, but you must follow standard battery safety practices (proper chargers, never charge unattended, use fireproof surfaces/bags, inspect for damage).
+

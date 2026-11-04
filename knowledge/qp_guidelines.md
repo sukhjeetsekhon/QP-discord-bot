@@ -79,7 +79,7 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
 ---
 
 ## 8. 📅 Events, Workathons, & Showcase
-- **Workathons (Fall 2026)**: There are **no more workathons for Fall Quarter 2026** due to university room scheduling conflicts and logistics. Teams are encouraged to meet on their own or utilize the IEEE Project Space during Open Access Hours.
+- **Workathons (Fall 2026)**: There are **no more workathons for Fall Quarter 2026** due to university room scheduling conflicts and logistics. Teams are encouraged to meet on their own or utilize the IEEE Project Space during Open Access Hours (see the OAH schedule or check the live calendar at https://ieeeatucsd.org/join).
 - **End-of-Quarter Showcase**: The date and location for the final showcase are **confirmed**. The QP Chair will officially announce the details this weekend (Saturday or Sunday).
 - **Milestones 1 & 2**: These are progress reports designed to check in on team progress, surface blockers early, and push teams to start working on their projects early.
 
