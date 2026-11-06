@@ -20,6 +20,16 @@ This document contains answers to frequently asked questions regarding the Fall 
 ### How does this differ from the historical QP budget?
 • Historically, QP offered a $50 base budget plus $11 per verified IEEE member. For Fall 2026, this was replaced by bulk shared parts provided directly by IEEE leadership.
 
+### How do we borrow lab components or tools from the Project Space?
+• **Photo-Based Borrowing System:**
+  1. Head to the `#borrow-items` channel.
+  2. Click the **"📸 Borrow Lab Item"** button on the panel.
+  3. A private 24-hour checkout thread is opened for your team.
+  4. In that thread, upload a clear **photo** of the item(s) you are borrowing along with the **item name / description & quantity** (e.g. `2x SG90 Servos, 1x Breadboard`).
+  5. The bot automatically logs the checkout card to `#inventory` with the timestamp and your team role.
+  6. When returning items to the lab, click **Request Return 📦** on the `#inventory` card so an officer can inspect and click **Confirm Return ✅**.
+  7. Use `/borrowed-items` to see items your team currently has checked out.
+
 ---
 
 ## 2. 🎯 Milestones & Progress Reports

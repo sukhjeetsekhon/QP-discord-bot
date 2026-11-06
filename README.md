@@ -47,15 +47,25 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * **Mark Resolved ✅**: Mentors or students mark the ticket resolved when help is complete.
   * **Close Channel 🔒**: Confirms and deletes the private channel with countdown once assistance wraps up.
 
-### 5. 📦 Lab Inventory Location Tracking & Timestamped Borrowing
-* Track which team borrowed what component and when, with exact timestamps on checkouts and returns.
-* Commands:
+### 5. 📦 Lab Inventory Tracking & Photo-Based Item Borrowing
+* **📸 Photo-Based Borrowing System (`#borrow-items` ➔ `#inventory`)**:
+  * Run `/setup-borrow-panel` to post a persistent **"Borrow Lab Item 📸"** panel in `#borrow-items`.
+  * Participants click to launch a private 24-hour checkout thread where the bot auto-detects their `Team <N>` role.
+  * Participants upload a photo of the borrowed parts along with the item name & quantity.
+  * The bot automatically packages and posts an official real-time status card to `#inventory` with the image and timestamps.
+  * **Two-Step Return Workflow**:
+    * Participants click **Request Return 📦** on their `#inventory` card when dropping items off in the Project Space.
+    * Leadership (@QP Chair, @Mentor, @Officer) inspects the item and clicks **Confirm Return ✅** to verify return and timestamp it.
+* **Commands**:
+  * `/setup-borrow-panel [channel:]`: Deploy the persistent borrowing panel in `#borrow-items` (Leadership only).
+  * `/borrow-photo image: item: [team:]`: Direct slash command alternative to log an item with an attached photo.
+  * `/borrowed-items [team:] [status:]`: View photo-logged items by team and status (`borrowed`, `return_pending`, `returned`).
   * `/inventory [search] [category]`: Search available parts in stock and their physical location in the lab.
   * `/inventory-add name: category: quantity: location:`: Add or restock components (Leadership only).
-  * `/checkout team: item: quantity: [member]`: Check out tools or components to a team with an exact timestamp.
-  * `/return team: item: quantity:`: Return borrowed components back to lab stock with an exact return timestamp.
-  * `/whereis item:`: Pinpoint exactly where all units of a component are (how many in lab stock vs. which teams borrowed them).
-  * `/borrowed [team]`: View all equipment currently checked out by a specific team or across all teams.
+  * `/checkout team: item: quantity: [member]`: Check out tools or components to a team with an exact timestamp (Leadership only).
+  * `/return team: item: quantity:`: Return borrowed components back to lab stock with an exact return timestamp (Leadership only).
+  * `/whereis item:`: Pinpoint exactly where all units of a component are.
+  * `/borrowed [team]`: View all equipment currently checked out by a specific team.
   * `/loan-history [team] [item] [limit]`: View a chronological audit log of all checkouts and returns with timestamps.
 
 ### 6. 🤖 AI Help Channel (`#ask-ai`) & Knowledge Base

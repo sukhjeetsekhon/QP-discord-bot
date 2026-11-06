@@ -48,9 +48,15 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
   - Equipment borrowed from the lab must be checked out using `/checkout team: item: quantity:`.
   - When finished, return tools to the lab and record with `/return team: item: quantity:`.
   - All checkouts and returns are strictly timestamped to ensure shared tools (e.g. wire strippers, heat guns, multimeter probes) remain accounted for.
-  Currently the inventory checkout is not complete because inventory of the project space has not been completed, so do not use the inventory commands.
-  The QP Chair will have a form for teams to fill out for each time they need to borrow a part.
-  For the meantime, take a photo of the parts and send the image directly to the QP Chairs and make sure to notify the team number as well.
+- **Photo-Based Item Borrowing Workflow**:
+  Because the full project space inventory is still being catalogued, borrowing items is managed via photo checkouts:
+  1. Go to the `#borrow-items` channel.
+  2. Click the **'📸 Borrow Lab Item'** button on the panel.
+  3. The bot creates a private 24-hour checkout thread for your team.
+  4. In that thread, reply with a **photo** of the item(s) and the **item name/description & quantity** (e.g. `2x Arduino Uno, 1x breadboard`).
+  5. The bot packages and posts the official checkout card to `#inventory` with the timestamp and team number.
+  6. When returning equipment to the Project Space, click **Request Return 📦** on the `#inventory` card so an officer can inspect and click **Confirm Return ✅**.
+  7. Teams can check their active borrowed items at any time with `/borrowed-items`.
 
 ---
 

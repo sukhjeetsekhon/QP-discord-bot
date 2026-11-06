@@ -18,6 +18,8 @@ TICKETS_CATEGORY_NAME = os.getenv("TICKETS_CATEGORY_NAME", "Hardware Requests")
 MENTOR_CATEGORY_NAME = os.getenv("MENTOR_CATEGORY_NAME", "Help Requests")
 AI_HELP_CHANNEL_NAME = os.getenv("AI_HELP_CHANNEL_NAME", "ask-ai")
 EVENT_REQUESTS_CHANNEL_NAME = os.getenv("EVENT_REQUESTS_CHANNEL_NAME", "event-requests")
+BORROW_ITEMS_CHANNEL_NAME = os.getenv("BORROW_ITEMS_CHANNEL_NAME", "borrow-items")
+INVENTORY_CHANNEL_NAME = os.getenv("INVENTORY_CHANNEL_NAME", "inventory")
 
 # Optional: Specific Channel ID for the AI help channel
 _ai_channel_id_env = os.getenv("AI_HELP_CHANNEL_ID")

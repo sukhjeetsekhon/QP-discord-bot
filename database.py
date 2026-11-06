@@ -104,6 +104,24 @@ def init_db():
             );
         """)
 
+        # 7. Photo-Based Inventory Loans
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS photo_loans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_number INTEGER,
+                borrower_id INTEGER,
+                item_description TEXT,
+                image_url TEXT,
+                status TEXT DEFAULT 'borrowed',
+                borrowed_at TEXT,
+                returned_at TEXT,
+                log_channel_id INTEGER,
+                log_message_id INTEGER,
+                thread_id INTEGER,
+                confirmed_by_id INTEGER
+            );
+        """)
+
         # Initialize default budgets for all teams if missing
         for t in range(1, config.MAX_TEAMS + 1):
             conn.execute("""
@@ -648,3 +666,118 @@ def clear_knowledge_cache(source_name: Optional[str] = None):
             conn.execute("DELETE FROM ai_knowledge_cache;")
     conn.close()
 
+
+
+# ==========================================
+# PHOTO-BASED INVENTORY LOAN FUNCTIONS
+# ==========================================
+
+def create_photo_loan(
+    team_number: int,
+    borrower_id: int,
+    item_description: str,
+    image_url: str,
+    log_channel_id: Optional[int] = None,
+    log_message_id: Optional[int] = None,
+    thread_id: Optional[int] = None,
+) -> int:
+    """Create a new photo-based item loan record and return its ID."""
+    conn = get_db_connection()
+    now_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+    with conn:
+        cursor = conn.execute("""
+            INSERT INTO photo_loans (
+                team_number, borrower_id, item_description, image_url,
+                status, borrowed_at, log_channel_id, log_message_id, thread_id
+            ) VALUES (?, ?, ?, ?, 'borrowed', ?, ?, ?, ?)
+        """, (team_number, borrower_id, item_description, image_url, now_str, log_channel_id, log_message_id, thread_id))
+        loan_id = cursor.lastrowid
+    conn.close()
+    return loan_id
+
+
+def update_photo_loan_message(loan_id: int, log_channel_id: int, log_message_id: int):
+    """Link the Discord message ID and channel ID to the loan record."""
+    conn = get_db_connection()
+    with conn:
+        conn.execute("""
+            UPDATE photo_loans
+            SET log_channel_id = ?, log_message_id = ?
+            WHERE id = ?
+        """, (log_channel_id, log_message_id, loan_id))
+    conn.close()
+
+
+def update_photo_loan_status(loan_id: int, status: str, confirmed_by_id: Optional[int] = None) -> bool:
+    """Update loan status ('borrowed', 'return_pending', 'returned')."""
+    conn = get_db_connection()
+    now_str = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+    with conn:
+        if status == "returned":
+            cursor = conn.execute("""
+                UPDATE photo_loans
+                SET status = ?, returned_at = ?, confirmed_by_id = ?
+                WHERE id = ?
+            """, (status, now_str, confirmed_by_id, loan_id))
+        else:
+            cursor = conn.execute("""
+                UPDATE photo_loans
+                SET status = ?
+                WHERE id = ?
+            """, (status, loan_id))
+        updated = cursor.rowcount > 0
+    conn.close()
+    return updated
+
+
+def get_photo_loan(loan_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieve details for a single photo loan."""
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM photo_loans WHERE id = ?", (loan_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_photo_loan_by_message(message_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieve a photo loan record by its log embed message ID."""
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM photo_loans WHERE log_message_id = ?", (message_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_photo_loans_by_team(team_number: int, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieve photo loans for a specific team, optionally filtered by status."""
+    conn = get_db_connection()
+    if status:
+        rows = conn.execute("""
+            SELECT * FROM photo_loans
+            WHERE team_number = ? AND status = ?
+            ORDER BY id DESC
+        """, (team_number, status)).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT * FROM photo_loans
+            WHERE team_number = ?
+            ORDER BY id DESC
+        """, (team_number,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_photo_loans(status: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieve all photo loans, optionally filtered by status."""
+    conn = get_db_connection()
+    if status:
+        rows = conn.execute("""
+            SELECT * FROM photo_loans
+            WHERE status = ?
+            ORDER BY id DESC
+        """, (status,)).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT * FROM photo_loans
+            ORDER BY id DESC
+        """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

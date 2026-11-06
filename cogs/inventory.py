@@ -1,17 +1,598 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+import re
 import config
 import database
 from cogs.hardware_tickets import is_staff_or_admin
 from cogs.team_assignment import TEAM_ROLE_PATTERN
 
 
+class BorrowReturnControlView(discord.ui.View):
+    """Persistent controls on the #inventory embed for tracking two-step returns."""
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Request Return",
+        style=discord.ButtonStyle.secondary,
+        custom_id="qp:photo_loan_req_return",
+        emoji="📦",
+        row=0,
+    )
+    async def request_return_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.message:
+            return
+
+        loan = database.get_photo_loan_by_message(interaction.message.id)
+        if not loan:
+            await interaction.response.send_message(
+                "❌ Could not find the database record for this loan.", ephemeral=True
+            )
+            return
+
+        if loan["status"] == "returned":
+            await interaction.response.send_message(
+                "✅ This item has already been marked as returned.", ephemeral=True
+            )
+            return
+
+        # Check permissions: borrower, teammate, or staff
+        is_staff = isinstance(interaction.user, discord.Member) and is_staff_or_admin(interaction.user)
+        is_borrower = interaction.user.id == loan["borrower_id"]
+        is_teammate = False
+        if isinstance(interaction.user, discord.Member) and loan["team_number"]:
+            target_role = f"team {loan['team_number']}"
+            if any(r.name.lower() == target_role for r in interaction.user.roles):
+                is_teammate = True
+
+        if not (is_staff or is_borrower or is_teammate):
+            await interaction.response.send_message(
+                "❌ Only the borrower, their teammates, or Leadership can request a return.",
+                ephemeral=True,
+            )
+            return
+
+        database.update_photo_loan_status(loan["id"], "return_pending")
+
+        # Update the embed
+        embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Borrowed Item")
+        embed.color = discord.Color.orange()
+        for i, field in enumerate(embed.fields):
+            if field.name == "📊 Status":
+                embed.set_field_at(
+                    i,
+                    name="📊 Status",
+                    value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
+                    inline=True,
+                )
+                break
+        embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
+
+        # Disable the Request Return button on the current view
+        for child in self.children:
+            if isinstance(child, discord.ui.Button) and child.custom_id == "qp:photo_loan_req_return":
+                child.disabled = True
+
+        await interaction.message.edit(embed=embed, view=self)
+        await interaction.response.send_message(
+            "📦 Return requested! Please place the item in the IEEE Project Space for an officer to inspect and confirm.",
+            ephemeral=True,
+        )
+
+    @discord.ui.button(
+        label="Confirm Return",
+        style=discord.ButtonStyle.success,
+        custom_id="qp:photo_loan_confirm_return",
+        emoji="✅",
+        row=0,
+    )
+    async def confirm_return_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.message:
+            return
+
+        # Only Leadership can confirm returns
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can confirm returns.",
+                ephemeral=True,
+            )
+            return
+
+        loan = database.get_photo_loan_by_message(interaction.message.id)
+        if not loan:
+            await interaction.response.send_message(
+                "❌ Could not find the database record for this loan.", ephemeral=True
+            )
+            return
+
+        if loan["status"] == "returned":
+            await interaction.response.send_message(
+                "✅ This item is already marked as returned.", ephemeral=True
+            )
+            return
+
+        database.update_photo_loan_status(loan["id"], "returned", confirmed_by_id=interaction.user.id)
+
+        now_ts = int(datetime.now().timestamp())
+        embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Borrowed Item")
+        embed.color = discord.Color.green()
+        for i, field in enumerate(embed.fields):
+            if field.name == "📊 Status":
+                embed.set_field_at(
+                    i,
+                    name="📊 Status",
+                    value=f"🟢 **Returned**\n*(Confirmed by {interaction.user.mention})*",
+                    inline=True,
+                )
+                break
+
+        embed.add_field(
+            name="📥 Return Confirmed",
+            value=f"<t:{now_ts}:F> by {interaction.user.mention}",
+            inline=False,
+        )
+        embed.set_footer(text=f"Return verified by {interaction.user.display_name} • Item back in lab storage")
+
+        # Disable all buttons upon return completion
+        for child in self.children:
+            if isinstance(child, discord.ui.Button):
+                child.disabled = True
+
+        await interaction.message.edit(embed=embed, view=self)
+        await interaction.response.send_message(
+            f"✅ Return confirmed for Team {loan['team_number']} - **{loan['item_description']}**!",
+            ephemeral=True,
+        )
+
+
+class BorrowItemPanelButtonView(discord.ui.View):
+    """Persistent button panel in #borrow-items for starting an item borrowing thread."""
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Borrow Lab Item",
+        style=discord.ButtonStyle.primary,
+        custom_id="qp:borrow_item_btn",
+        emoji="📸",
+        row=0,
+    )
+    async def borrow_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild = interaction.guild
+        if not guild or not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message("❌ Guild context required.", ephemeral=True)
+            return
+
+        # Auto-detect team from roles
+        team_num = None
+        for role in interaction.user.roles:
+            m = TEAM_ROLE_PATTERN.match(role.name)
+            if m:
+                team_num = int(m.group(1))
+                break
+
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("❌ This panel must be in a text channel.", ephemeral=True)
+            return
+
+        team_label = f"Team {team_num}" if team_num else "Unassigned Team"
+        thread_name = f"borrow-{interaction.user.display_name[:15]}-t{team_num if team_num else 'x'}"
+
+        try:
+            thread = await channel.create_thread(
+                name=thread_name,
+                type=discord.ChannelType.private_thread,
+                auto_archive_duration=1440,
+                reason=f"Borrow log thread for {interaction.user.display_name}",
+            )
+        except (discord.Forbidden, discord.HTTPException):
+            try:
+                thread = await channel.create_thread(
+                    name=thread_name,
+                    type=discord.ChannelType.public_thread,
+                    auto_archive_duration=1440,
+                    reason=f"Borrow log thread for {interaction.user.display_name}",
+                )
+            except Exception as e:
+                await interaction.response.send_message(
+                    f"❌ Could not create a borrowing thread: {e}", ephemeral=True
+                )
+                return
+
+        try:
+            await thread.add_user(interaction.user)
+        except Exception:
+            pass
+
+        instructions = (
+            f"👋 Welcome {interaction.user.mention}!\n\n"
+            f"**Team Detected:** `{team_label}`\n\n"
+            "**To log your borrowed item, reply to this thread with:**\n"
+            "1. 📷 An attached **photo** of the item(s) you are borrowing.\n"
+            "2. 📝 The **Item Name / Description & Quantity** in your message text (e.g. `2x Arduino Uno, 1x Breadboard`).\n"
+        )
+        if not team_num:
+            instructions += "\n*(If you are in a team, please mention 'Team X' in your message).* \n"
+        instructions += (
+            "\nOnce you post your photo and description, the bot will automatically package and post it to `#inventory`!\n\n"
+            "⏳ *This thread will remain open for 24 hours so you can review it.*"
+        )
+
+        embed = discord.Embed(
+            title="📸 Borrow Lab Item Checkout",
+            description=instructions,
+            color=discord.Color.blue(),
+        )
+        embed.set_footer(text="IEEE Quarterly Projects • Lab Inventory Tracker")
+
+        await thread.send(content=interaction.user.mention, embed=embed)
+        await interaction.response.send_message(
+            f"✅ Created your private checkout thread: {thread.mention}. Please upload your photo there!",
+            ephemeral=True,
+        )
+
+
 class InventoryCog(commands.Cog):
-    """Commands for managing IEEE QP lab inventory, tracking item locations, and timestamped checkouts/returns."""
+    """Commands for managing IEEE QP lab inventory, photo-based borrowing, and checkouts/returns."""
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    # ==========================================
+    # PHOTO-BASED BORROWING THREAD LISTENER
+    # ==========================================
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        """Listen for photo uploads in borrowing threads."""
+        if message.author.bot:
+            return
+
+        if not isinstance(message.channel, discord.Thread):
+            return
+
+        if not message.channel.name.startswith("borrow-"):
+            return
+
+        # Check if this thread already has an active or completed loan logged
+        existing_loans = database.get_all_photo_loans()
+        if any(l.get("thread_id") == message.channel.id for l in existing_loans):
+            # Already logged an item in this thread
+            return
+
+        # Check for image attachments
+        image_attachments = [
+            a for a in message.attachments
+            if (a.content_type and a.content_type.startswith("image/"))
+            or a.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))
+        ]
+
+        if not image_attachments:
+            # User sent text without an image
+            await message.reply(
+                "⚠️ **Please attach a photo** of the item you borrowed along with your message!",
+                mention_author=True,
+            )
+            return
+
+        item_desc = message.content.strip()
+        if not item_desc:
+            # User sent image without text description
+            await message.reply(
+                "⚠️ **Please include the item name/description and quantity** in your message text (e.g. `2x SG90 Servo Motors`) along with your photo!",
+                mention_author=True,
+            )
+            return
+
+        # Detect team number: first check message text, then check member roles
+        team_num = None
+        match_text = re.search(r"team\s*(\d+)", item_desc, re.IGNORECASE)
+        if match_text:
+            team_num = int(match_text.group(1))
+        elif isinstance(message.author, discord.Member):
+            for role in message.author.roles:
+                m = TEAM_ROLE_PATTERN.match(role.name)
+                if m:
+                    team_num = int(m.group(1))
+                    break
+
+        guild = message.guild
+        if not guild:
+            return
+
+        # Locate or create the #inventory channel
+        target_channel_name = config.INVENTORY_CHANNEL_NAME.lower()
+        inv_channel = discord.utils.get(guild.text_channels, name=target_channel_name)
+        if not inv_channel:
+            try:
+                inv_channel = await guild.create_text_channel(
+                    name=target_channel_name,
+                    topic="Official photo-based log of borrowed lab components and equipment.",
+                )
+            except Exception as e:
+                await message.reply(f"❌ Could not find or create `#{target_channel_name}`: {e}")
+                return
+
+        now_ts = int(datetime.now().timestamp())
+        embed = discord.Embed(
+            title=f"📦 Borrowed Item: {item_desc}",
+            color=discord.Color.gold(),
+            timestamp=datetime.now(),
+        )
+        embed.add_field(name="🏷️ Team", value=f"Team {team_num}" if team_num else "Unassigned", inline=True)
+        embed.add_field(name="👤 Borrower", value=message.author.mention, inline=True)
+        embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
+        embed.add_field(name="📝 Item Description", value=item_desc, inline=False)
+        embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
+        embed.set_image(url=image_attachments[0].url)
+        embed.set_footer(text=f"Logged by {message.author.display_name} • Click 'Request Return' when returning to lab")
+
+        # Save to database
+        loan_id = database.create_photo_loan(
+            team_number=team_num or 0,
+            borrower_id=message.author.id,
+            item_description=item_desc,
+            image_url=image_attachments[0].url,
+            log_channel_id=inv_channel.id,
+            thread_id=message.channel.id,
+        )
+
+        view = BorrowReturnControlView()
+        log_msg = await inv_channel.send(embed=embed, view=view)
+        database.update_photo_loan_message(loan_id, inv_channel.id, log_msg.id)
+
+        # Send confirmation in thread
+        confirm_embed = discord.Embed(
+            title="✅ Item Successfully Logged!",
+            description=(
+                f"Your borrowed item has been officially logged to {inv_channel.mention}!\n\n"
+                f"[**Jump to Inventory Record**]({log_msg.jump_url})\n\n"
+                "**Return Policy:**\n"
+                "When your team finishes with the equipment or at the end of the quarter, "
+                "return it to the IEEE Project Space and click **Request Return 📦** on the inventory record."
+            ),
+            color=discord.Color.green(),
+        )
+        confirm_embed.set_footer(text="This thread will automatically archive in 24 hours.")
+        await message.reply(embed=confirm_embed)
+
+    # ==========================================
+    # PHOTO BORROWING COMMANDS
+    # ==========================================
+
+    @app_commands.command(
+        name="setup-borrow-panel",
+        description="Post the persistent 'Borrow Lab Item' button panel in #borrow-items (Leadership only).",
+    )
+    @app_commands.describe(
+        channel="Optional channel to post the panel in (defaults to #borrow-items)"
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def setup_borrow_panel(
+        self,
+        interaction: discord.Interaction,
+        channel: Optional[discord.TextChannel] = None,
+    ):
+        if not isinstance(interaction.user, discord.Member) or not is_staff_or_admin(interaction.user):
+            await interaction.response.send_message(
+                f"❌ Only Leadership ({', '.join(config.STAFF_ROLES)}) can setup the borrowing panel.",
+                ephemeral=True,
+            )
+            return
+
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Guild context required.", ephemeral=True)
+            return
+
+        target_channel = channel
+        if not target_channel:
+            channel_name = config.BORROW_ITEMS_CHANNEL_NAME.lower()
+            target_channel = discord.utils.get(guild.text_channels, name=channel_name)
+            if not target_channel:
+                try:
+                    target_channel = await guild.create_text_channel(
+                        name=channel_name,
+                        topic="Log equipment and parts borrowed from the IEEE Project Space.",
+                    )
+                except Exception as e:
+                    await interaction.response.send_message(
+                        f"❌ Failed to find or create `#{channel_name}`: {e}", ephemeral=True
+                    )
+                    return
+
+        embed = discord.Embed(
+            title="📸 IEEE Lab Item Borrowing & Inventory Log",
+            description=(
+                "Borrowing components or tools from the **IEEE Project Space (Jacobs Hall 4309)**?\n\n"
+                "**How to Log Borrowed Items:**\n"
+                "1. Click the **'📸 Borrow Lab Item'** button below.\n"
+                "2. The bot creates a private checkout thread for your team.\n"
+                "3. In the thread, upload a **photo** of the item along with the **item name & quantity**.\n"
+                "4. Your checkout is automatically logged to `#inventory`!\n\n"
+                "**Returning Items:**\n"
+                "Return all items to the Project Space when your team finishes or by the end of the quarter. "
+                "Click **Request Return 📦** on your `#inventory` post when dropping off items."
+            ),
+            color=discord.Color.blue(),
+        )
+        embed.add_field(
+            name="📍 Project Space Location",
+            value="Jacobs Hall 4309 (4th Floor) • During Open Access Hours",
+            inline=False,
+        )
+        embed.set_footer(text="IEEE Quarterly Projects • Equipment Tracking")
+
+        view = BorrowItemPanelButtonView()
+        msg = await target_channel.send(embed=embed, view=view)
+        await interaction.response.send_message(
+            f"✅ Borrowing panel posted in {target_channel.mention}!\n[Jump to Panel]({msg.jump_url})",
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="borrow-photo",
+        description="Directly log a borrowed lab item with a photo attachment.",
+    )
+    @app_commands.describe(
+        image="Photo of the item(s) being borrowed",
+        item="Item name / description and quantity (e.g. '2x Arduino Uno, 1x breadboard')",
+        team=f"Optional team number (1-{config.MAX_TEAMS}). Auto-detected from role if omitted.",
+    )
+    async def borrow_photo_cmd(
+        self,
+        interaction: discord.Interaction,
+        image: discord.Attachment,
+        item: str,
+        team: Optional[int] = None,
+    ):
+        if not (image.content_type and image.content_type.startswith("image/")) and not image.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+            await interaction.response.send_message("❌ The uploaded attachment must be an image file.", ephemeral=True)
+            return
+
+        member = interaction.user
+        if team is None and isinstance(member, discord.Member):
+            for role in member.roles:
+                m = TEAM_ROLE_PATTERN.match(role.name)
+                if m:
+                    team = int(m.group(1))
+                    break
+
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Guild context required.", ephemeral=True)
+            return
+
+        target_channel_name = config.INVENTORY_CHANNEL_NAME.lower()
+        inv_channel = discord.utils.get(guild.text_channels, name=target_channel_name)
+        if not inv_channel:
+            try:
+                inv_channel = await guild.create_text_channel(
+                    name=target_channel_name,
+                    topic="Official photo-based log of borrowed lab components and equipment.",
+                )
+            except Exception as e:
+                await interaction.response.send_message(f"❌ Could not find or create `#{target_channel_name}`: {e}", ephemeral=True)
+                return
+
+        now_ts = int(datetime.now().timestamp())
+        embed = discord.Embed(
+            title=f"📦 Borrowed Item: {item.strip()}",
+            color=discord.Color.gold(),
+            timestamp=datetime.now(),
+        )
+        embed.add_field(name="🏷️ Team", value=f"Team {team}" if team else "Unassigned", inline=True)
+        embed.add_field(name="👤 Borrower", value=interaction.user.mention, inline=True)
+        embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
+        embed.add_field(name="📝 Item Description", value=item.strip(), inline=False)
+        embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
+        embed.set_image(url=image.url)
+        embed.set_footer(text=f"Logged by {interaction.user.display_name} • Click 'Request Return' when returning to lab")
+
+        loan_id = database.create_photo_loan(
+            team_number=team or 0,
+            borrower_id=interaction.user.id,
+            item_description=item.strip(),
+            image_url=image.url,
+            log_channel_id=inv_channel.id,
+        )
+
+        view = BorrowReturnControlView()
+        log_msg = await inv_channel.send(embed=embed, view=view)
+        database.update_photo_loan_message(loan_id, inv_channel.id, log_msg.id)
+
+        await interaction.response.send_message(
+            f"✅ **Item successfully logged to {inv_channel.mention}!**\n[Jump to Record]({log_msg.jump_url})",
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="borrowed-items",
+        description="View photo-logged items borrowed by a team or across all teams.",
+    )
+    @app_commands.describe(
+        team=f"Optional team number (1-{config.MAX_TEAMS}). Leave blank to see all teams.",
+        status="Filter by status (borrowed, return_pending, returned, or all)",
+    )
+    @app_commands.choices(
+        status=[
+            app_commands.Choice(name="Currently Borrowed (In Use)", value="borrowed"),
+            app_commands.Choice(name="Return Pending Review", value="return_pending"),
+            app_commands.Choice(name="Returned", value="returned"),
+            app_commands.Choice(name="All Records", value="all"),
+        ]
+    )
+    async def borrowed_items_cmd(
+        self,
+        interaction: discord.Interaction,
+        team: Optional[int] = None,
+        status: Optional[str] = "borrowed",
+    ):
+        member = interaction.user
+        is_staff = isinstance(member, discord.Member) and is_staff_or_admin(member)
+
+        if team is None and isinstance(member, discord.Member):
+            for role in member.roles:
+                m = TEAM_ROLE_PATTERN.match(role.name)
+                if m and not is_staff:
+                    team = int(m.group(1))
+                    break
+
+        filter_status = None if status == "all" else status
+
+        if team:
+            loans = database.get_photo_loans_by_team(team, status=filter_status)
+        else:
+            loans = database.get_all_photo_loans(status=filter_status)
+
+        if not loans:
+            status_text = f" with status `{status}`" if status != "all" else ""
+            msg = f"No photo-logged items found for **Team {team}**{status_text}." if team else f"No photo-logged items found{status_text}."
+            await interaction.response.send_message(f"ℹ️ {msg}", ephemeral=True)
+            return
+
+        title = f"📸 Borrowed Items — Team {team}" if team else "📸 All Photo-Logged Lab Items"
+        embed = discord.Embed(
+            title=title,
+            description=f"Showing **{min(len(loans), 15)}** of **{len(loans)}** recorded photo loan(s).",
+            color=discord.Color.blue(),
+        )
+
+        status_emojis = {
+            "borrowed": "🟡 Borrowed",
+            "return_pending": "⏳ Return Pending",
+            "returned": "🟢 Returned",
+        }
+
+        for loan in loans[:15]:
+            borrower_mention = f"<@{loan['borrower_id']}>" if loan.get("borrower_id") else "Unknown"
+            status_str = status_emojis.get(loan.get("status"), "Unknown")
+            jump_link = ""
+            if loan.get("log_channel_id") and loan.get("log_message_id"):
+                jump_link = f"\n• [View Log Post](https://discord.com/channels/{interaction.guild_id}/{loan['log_channel_id']}/{loan['log_message_id']})"
+
+            field_name = f"Team {loan['team_number']} • {loan['item_description'][:35]}"
+            field_val = (
+                f"• Status: **{status_str}**\n"
+                f"• Borrower: {borrower_mention}\n"
+                f"• Logged: `{loan.get('borrowed_at', 'N/A')}`"
+                f"{jump_link}"
+            )
+            embed.add_field(name=field_name, value=field_val, inline=False)
+
+        # Set image to first loan thumbnail if available
+        if loans[0].get("image_url"):
+            embed.set_thumbnail(url=loans[0]["image_url"])
+
+        embed.set_footer(text="IEEE Quarterly Projects • Lab Inventory Tracker")
+        await interaction.response.send_message(embed=embed)
+
+    # ==========================================
+    # EXISTING CATALOG COMMANDS
+    # ==========================================
 
     @app_commands.command(
         name="inventory-add",

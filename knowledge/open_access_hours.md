@@ -53,3 +53,4 @@
 
 ### Friday & Weekends
 • No regularly scheduled officer drop-in hours. Check the live calendar at https://ieeeatucsd.org/join for special announcements or weekend workshops.
+
