@@ -10,6 +10,34 @@ from cogs.hardware_tickets import is_staff_or_admin
 from cogs.team_assignment import TEAM_ROLE_PATTERN
 
 
+async def resolve_channel(
+    guild: discord.Guild,
+    channel_id: Optional[int],
+    fallback_name: str,
+) -> Optional[discord.TextChannel]:
+    """Retrieve a text channel by ID or fallback to looking up by name."""
+    if channel_id:
+        ch = guild.get_channel(channel_id)
+        if isinstance(ch, discord.TextChannel):
+            return ch
+        try:
+            ch = await guild.fetch_channel(channel_id)
+            if isinstance(ch, discord.TextChannel):
+                return ch
+        except Exception:
+            pass
+
+    return discord.utils.get(guild.text_channels, name=fallback_name.lower())
+
+
+def get_staff_mention(guild: discord.Guild) -> str:
+    """Find and return the mention string for the staff role."""
+    staff_role = discord.utils.get(guild.roles, name=config.STAFF_ROLE_NAME)
+    if not staff_role:
+        staff_role = next((r for r in guild.roles if r.name.lower() == config.STAFF_ROLE_NAME.lower()), None)
+    return staff_role.mention if staff_role else f"@{config.STAFF_ROLE_NAME}"
+
+
 class PublicBorrowReturnView(discord.ui.View):
     """Persistent controls on public active cards in #borrowed-items."""
     def __init__(self):
@@ -23,7 +51,7 @@ class PublicBorrowReturnView(discord.ui.View):
         row=0,
     )
     async def public_request_return_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.message:
+        if not interaction.message or not interaction.guild:
             return
 
         loan = database.get_photo_loan_by_message(interaction.message.id)
@@ -43,7 +71,7 @@ class PublicBorrowReturnView(discord.ui.View):
         is_staff = isinstance(interaction.user, discord.Member) and is_staff_or_admin(interaction.user)
         is_borrower = interaction.user.id == loan["borrower_id"]
         is_teammate = False
-        if isinstance(interaction.user, discord.Member) and loan["team_number"]:
+        if isinstance(interaction.user, discord.Member) and loan.get("team_number"):
             target_role = f"team {loan['team_number']}"
             if any(r.name.lower() == target_role for r in interaction.user.roles):
                 is_teammate = True
@@ -60,46 +88,97 @@ class PublicBorrowReturnView(discord.ui.View):
         # 1. Update the public card in #borrowed-items
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Active Loan")
         embed.color = discord.Color.orange()
+        status_updated = False
         for i, field in enumerate(embed.fields):
-            if field.name == "📊 Status":
+            if "status" in field.name.lower():
                 embed.set_field_at(
                     i,
                     name="📊 Status",
                     value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
                     inline=True,
                 )
+                status_updated = True
                 break
+        if not status_updated:
+            embed.add_field(
+                name="📊 Status",
+                value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
+                inline=True,
+            )
         embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
 
-        # Disable button on public card
         for child in self.children:
             if isinstance(child, discord.ui.Button) and child.custom_id == "qp:public_photo_req_return":
                 child.disabled = True
 
         await interaction.message.edit(embed=embed, view=self)
 
-        # 2. Sync to private card in #inventory if present
-        if loan.get("log_channel_id") and loan.get("log_message_id") and interaction.guild:
-            try:
-                priv_channel = interaction.guild.get_channel(loan["log_channel_id"])
-                if isinstance(priv_channel, discord.TextChannel):
+        # 2. Sync to private card in #inventory & Alert @QP Chair
+        priv_channel = await resolve_channel(
+            interaction.guild,
+            loan.get("log_channel_id"),
+            config.INVENTORY_CHANNEL_NAME,
+        )
+
+        priv_msg = None
+        if priv_channel:
+            if loan.get("log_message_id"):
+                try:
                     priv_msg = await priv_channel.fetch_message(loan["log_message_id"])
                     if priv_msg and priv_msg.embeds:
                         priv_embed = priv_msg.embeds[0]
                         priv_embed.color = discord.Color.orange()
+                        priv_status_updated = False
                         for i, field in enumerate(priv_embed.fields):
-                            if field.name == "📊 Status":
+                            if "status" in field.name.lower():
                                 priv_embed.set_field_at(
                                     i,
                                     name="📊 Status",
                                     value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
                                     inline=True,
                                 )
+                                priv_status_updated = True
                                 break
+                        if not priv_status_updated:
+                            priv_embed.add_field(
+                                name="📊 Status",
+                                value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
+                                inline=True,
+                            )
                         priv_embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
                         await priv_msg.edit(embed=priv_embed)
+                except Exception as e:
+                    print(f"⚠️ Could not edit private message in #inventory: {e}")
+
+            # Send high-visibility alert message in #inventory pinging @QP Chair
+            staff_mention = get_staff_mention(interaction.guild)
+            team_str = f"Team {loan['team_number']}" if loan.get("team_number") else "Unassigned Team"
+            jump_link_str = f"\n• [Jump to Inventory Card]({priv_msg.jump_url})" if priv_msg else ""
+
+            alert_embed = discord.Embed(
+                title="🔔 Item Return Dropped Off!",
+                description=(
+                    f"{interaction.user.mention} has dropped off an item and requested a return for **{team_str}**.\n\n"
+                    f"• **Item:** {loan.get('item_description', 'N/A')}\n"
+                    f"• **Borrower:** <@{loan.get('borrower_id')}>\n"
+                    f"• **Status:** ⏳ **Pending Officer Verification**"
+                    f"{jump_link_str}\n\n"
+                    "👉 *Please inspect the physical item in the Project Space and click **Confirm Return ✅** on the inventory card.*"
+                ),
+                color=discord.Color.orange(),
+                timestamp=datetime.now(),
+            )
+            if loan.get("image_url"):
+                alert_embed.set_thumbnail(url=loan["image_url"])
+            alert_embed.set_footer(text=f"Requested by {interaction.user.display_name} • Open Access Hours Return")
+
+            try:
+                await priv_channel.send(
+                    content=f"🔔 {staff_mention} **Item Return Dropped Off!**",
+                    embed=alert_embed,
+                )
             except Exception as e:
-                print(f"⚠️ Could not sync return_pending to #inventory: {e}")
+                print(f"⚠️ Failed to send alert to #inventory: {e}")
 
         await interaction.response.send_message(
             "📦 Return requested! Please drop off the item in the IEEE Project Space for an officer to inspect and confirm.",
@@ -120,7 +199,7 @@ class InventoryReturnControlView(discord.ui.View):
         row=0,
     )
     async def request_return_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.message:
+        if not interaction.message or not interaction.guild:
             return
 
         loan = database.get_photo_loan_by_message(interaction.message.id)
@@ -140,7 +219,7 @@ class InventoryReturnControlView(discord.ui.View):
         is_staff = isinstance(interaction.user, discord.Member) and is_staff_or_admin(interaction.user)
         is_borrower = interaction.user.id == loan["borrower_id"]
         is_teammate = False
-        if isinstance(interaction.user, discord.Member) and loan["team_number"]:
+        if isinstance(interaction.user, discord.Member) and loan.get("team_number"):
             target_role = f"team {loan['team_number']}"
             if any(r.name.lower() == target_role for r in interaction.user.roles):
                 is_teammate = True
@@ -157,7 +236,7 @@ class InventoryReturnControlView(discord.ui.View):
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Borrowed Item")
         embed.color = discord.Color.orange()
         for i, field in enumerate(embed.fields):
-            if field.name == "📊 Status":
+            if "status" in field.name.lower():
                 embed.set_field_at(
                     i,
                     name="📊 Status",
@@ -172,6 +251,33 @@ class InventoryReturnControlView(discord.ui.View):
                 child.disabled = True
 
         await interaction.message.edit(embed=embed, view=self)
+
+        # Sync to public card in #borrowed-items
+        pub_channel = await resolve_channel(
+            interaction.guild,
+            loan.get("public_channel_id"),
+            config.BORROWED_ITEMS_CHANNEL_NAME,
+        )
+        if pub_channel and loan.get("public_message_id"):
+            try:
+                pub_msg = await pub_channel.fetch_message(loan["public_message_id"])
+                if pub_msg and pub_msg.embeds:
+                    pub_embed = pub_msg.embeds[0]
+                    pub_embed.color = discord.Color.orange()
+                    for i, field in enumerate(pub_embed.fields):
+                        if "status" in field.name.lower():
+                            pub_embed.set_field_at(
+                                i,
+                                name="📊 Status",
+                                value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
+                                inline=True,
+                            )
+                            break
+                    pub_embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
+                    await pub_msg.edit(embed=pub_embed)
+            except Exception as e:
+                print(f"⚠️ Could not sync return_pending to #borrowed-items: {e}")
+
         await interaction.response.send_message(
             "📦 Return marked as pending review.",
             ephemeral=True,
@@ -185,7 +291,7 @@ class InventoryReturnControlView(discord.ui.View):
         row=0,
     )
     async def confirm_return_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.message:
+        if not interaction.message or not interaction.guild:
             return
 
         # Only Leadership can confirm returns
@@ -215,7 +321,7 @@ class InventoryReturnControlView(discord.ui.View):
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Borrowed Item")
         embed.color = discord.Color.green()
         for i, field in enumerate(embed.fields):
-            if field.name == "📊 Status":
+            if "status" in field.name.lower():
                 embed.set_field_at(
                     i,
                     name="📊 Status",
@@ -239,19 +345,22 @@ class InventoryReturnControlView(discord.ui.View):
         await interaction.message.edit(embed=embed, view=self)
 
         # Automatically DELETE the public card from #borrowed-items (keeping public feed active-only!)
-        if loan.get("public_channel_id") and loan.get("public_message_id") and interaction.guild:
+        pub_channel = await resolve_channel(
+            interaction.guild,
+            loan.get("public_channel_id"),
+            config.BORROWED_ITEMS_CHANNEL_NAME,
+        )
+        if pub_channel and loan.get("public_message_id"):
             try:
-                pub_channel = interaction.guild.get_channel(loan["public_channel_id"])
-                if isinstance(pub_channel, discord.TextChannel):
-                    pub_msg = await pub_channel.fetch_message(loan["public_message_id"])
-                    if pub_msg:
-                        await pub_msg.delete()
+                pub_msg = await pub_channel.fetch_message(loan["public_message_id"])
+                if pub_msg:
+                    await pub_msg.delete()
             except Exception as e:
                 print(f"⚠️ Could not delete public message from #borrowed-items: {e}")
 
         await interaction.response.send_message(
             f"✅ Return confirmed for Team {loan['team_number']} - **{loan['item_description']}**! Public card removed from active board.",
-            ephemeral=True,
+            ephemeral=False,
         )
 
 
