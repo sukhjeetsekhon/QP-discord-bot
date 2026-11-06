@@ -10,8 +10,105 @@ from cogs.hardware_tickets import is_staff_or_admin
 from cogs.team_assignment import TEAM_ROLE_PATTERN
 
 
-class BorrowReturnControlView(discord.ui.View):
-    """Persistent controls on the #inventory embed for tracking two-step returns."""
+class PublicBorrowReturnView(discord.ui.View):
+    """Persistent controls on public active cards in #borrowed-items."""
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Request Return",
+        style=discord.ButtonStyle.secondary,
+        custom_id="qp:public_photo_req_return",
+        emoji="📦",
+        row=0,
+    )
+    async def public_request_return_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.message:
+            return
+
+        loan = database.get_photo_loan_by_message(interaction.message.id)
+        if not loan:
+            await interaction.response.send_message(
+                "❌ Could not find the database record for this loan.", ephemeral=True
+            )
+            return
+
+        if loan["status"] == "returned":
+            await interaction.response.send_message(
+                "✅ This item has already been marked as returned.", ephemeral=True
+            )
+            return
+
+        # Check permissions: borrower, teammate, or staff
+        is_staff = isinstance(interaction.user, discord.Member) and is_staff_or_admin(interaction.user)
+        is_borrower = interaction.user.id == loan["borrower_id"]
+        is_teammate = False
+        if isinstance(interaction.user, discord.Member) and loan["team_number"]:
+            target_role = f"team {loan['team_number']}"
+            if any(r.name.lower() == target_role for r in interaction.user.roles):
+                is_teammate = True
+
+        if not (is_staff or is_borrower or is_teammate):
+            await interaction.response.send_message(
+                "❌ Only the borrower, their teammates, or Leadership can request a return.",
+                ephemeral=True,
+            )
+            return
+
+        database.update_photo_loan_status(loan["id"], "return_pending")
+
+        # 1. Update the public card in #borrowed-items
+        embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Active Loan")
+        embed.color = discord.Color.orange()
+        for i, field in enumerate(embed.fields):
+            if field.name == "📊 Status":
+                embed.set_field_at(
+                    i,
+                    name="📊 Status",
+                    value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
+                    inline=True,
+                )
+                break
+        embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
+
+        # Disable button on public card
+        for child in self.children:
+            if isinstance(child, discord.ui.Button) and child.custom_id == "qp:public_photo_req_return":
+                child.disabled = True
+
+        await interaction.message.edit(embed=embed, view=self)
+
+        # 2. Sync to private card in #inventory if present
+        if loan.get("log_channel_id") and loan.get("log_message_id") and interaction.guild:
+            try:
+                priv_channel = interaction.guild.get_channel(loan["log_channel_id"])
+                if isinstance(priv_channel, discord.TextChannel):
+                    priv_msg = await priv_channel.fetch_message(loan["log_message_id"])
+                    if priv_msg and priv_msg.embeds:
+                        priv_embed = priv_msg.embeds[0]
+                        priv_embed.color = discord.Color.orange()
+                        for i, field in enumerate(priv_embed.fields):
+                            if field.name == "📊 Status":
+                                priv_embed.set_field_at(
+                                    i,
+                                    name="📊 Status",
+                                    value=f"⏳ **Return Pending Review**\n*(Dropped off by {interaction.user.mention})*",
+                                    inline=True,
+                                )
+                                break
+                        priv_embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
+                        await priv_msg.edit(embed=priv_embed)
+            except Exception as e:
+                print(f"⚠️ Could not sync return_pending to #inventory: {e}")
+
+        await interaction.response.send_message(
+            "📦 Return requested! Please drop off the item in the IEEE Project Space for an officer to inspect and confirm.",
+            ephemeral=True,
+        )
+
+
+class InventoryReturnControlView(discord.ui.View):
+    """Persistent controls on the private #inventory embed for Leadership review."""
     def __init__(self):
         super().__init__(timeout=None)
 
@@ -57,7 +154,6 @@ class BorrowReturnControlView(discord.ui.View):
 
         database.update_photo_loan_status(loan["id"], "return_pending")
 
-        # Update the embed
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title="Borrowed Item")
         embed.color = discord.Color.orange()
         for i, field in enumerate(embed.fields):
@@ -71,14 +167,13 @@ class BorrowReturnControlView(discord.ui.View):
                 break
         embed.set_footer(text=f"Return requested by {interaction.user.display_name} • Awaiting Leadership confirmation")
 
-        # Disable the Request Return button on the current view
         for child in self.children:
             if isinstance(child, discord.ui.Button) and child.custom_id == "qp:photo_loan_req_return":
                 child.disabled = True
 
         await interaction.message.edit(embed=embed, view=self)
         await interaction.response.send_message(
-            "📦 Return requested! Please place the item in the IEEE Project Space for an officer to inspect and confirm.",
+            "📦 Return marked as pending review.",
             ephemeral=True,
         )
 
@@ -136,14 +231,26 @@ class BorrowReturnControlView(discord.ui.View):
         )
         embed.set_footer(text=f"Return verified by {interaction.user.display_name} • Item back in lab storage")
 
-        # Disable all buttons upon return completion
+        # Disable all buttons on private card
         for child in self.children:
             if isinstance(child, discord.ui.Button):
                 child.disabled = True
 
         await interaction.message.edit(embed=embed, view=self)
+
+        # Automatically DELETE the public card from #borrowed-items (keeping public feed active-only!)
+        if loan.get("public_channel_id") and loan.get("public_message_id") and interaction.guild:
+            try:
+                pub_channel = interaction.guild.get_channel(loan["public_channel_id"])
+                if isinstance(pub_channel, discord.TextChannel):
+                    pub_msg = await pub_channel.fetch_message(loan["public_message_id"])
+                    if pub_msg:
+                        await pub_msg.delete()
+            except Exception as e:
+                print(f"⚠️ Could not delete public message from #borrowed-items: {e}")
+
         await interaction.response.send_message(
-            f"✅ Return confirmed for Team {loan['team_number']} - **{loan['item_description']}**!",
+            f"✅ Return confirmed for Team {loan['team_number']} - **{loan['item_description']}**! Public card removed from active board.",
             ephemeral=True,
         )
 
@@ -218,8 +325,9 @@ class BorrowItemPanelButtonView(discord.ui.View):
         if not team_num:
             instructions += "\n*(If you are in a team, please mention 'Team X' in your message).* \n"
         instructions += (
-            "\nOnce you post your photo and description, the bot will automatically package and post it to `#inventory`!\n\n"
-            "⏳ *This thread will remain open for 24 hours so you can review it.*"
+            "\nOnce you post your photo and description, your checkout will be automatically logged to `#borrowed-items` for all teams to see, "
+            "and an internal audit copy will be filed with Leadership in `#inventory`!\n\n"
+            "⏳ *This thread will remain open for 24 hours so you can review your receipt.*"
         )
 
         embed = discord.Embed(
@@ -260,7 +368,6 @@ class InventoryCog(commands.Cog):
         # Check if this thread already has an active or completed loan logged
         existing_loans = database.get_all_photo_loans()
         if any(l.get("thread_id") == message.channel.id for l in existing_loans):
-            # Already logged an item in this thread
             return
 
         # Check for image attachments
@@ -271,7 +378,6 @@ class InventoryCog(commands.Cog):
         ]
 
         if not image_attachments:
-            # User sent text without an image
             await message.reply(
                 "⚠️ **Please attach a photo** of the item you borrowed along with your message!",
                 mention_author=True,
@@ -280,7 +386,6 @@ class InventoryCog(commands.Cog):
 
         item_desc = message.content.strip()
         if not item_desc:
-            # User sent image without text description
             await message.reply(
                 "⚠️ **Please include the item name/description and quantity** in your message text (e.g. `2x SG90 Servo Motors`) along with your photo!",
                 mention_author=True,
@@ -303,32 +408,61 @@ class InventoryCog(commands.Cog):
         if not guild:
             return
 
-        # Locate or create the #inventory channel
-        target_channel_name = config.INVENTORY_CHANNEL_NAME.lower()
-        inv_channel = discord.utils.get(guild.text_channels, name=target_channel_name)
+        # Locate or create the private #inventory channel (Leadership only)
+        inv_channel_name = config.INVENTORY_CHANNEL_NAME.lower()
+        inv_channel = discord.utils.get(guild.text_channels, name=inv_channel_name)
         if not inv_channel:
             try:
                 inv_channel = await guild.create_text_channel(
-                    name=target_channel_name,
-                    topic="Official photo-based log of borrowed lab components and equipment.",
+                    name=inv_channel_name,
+                    topic="Internal audit log of borrowed lab components and equipment (Leadership only).",
                 )
             except Exception as e:
-                await message.reply(f"❌ Could not find or create `#{target_channel_name}`: {e}")
+                await message.reply(f"❌ Could not find or create `#{inv_channel_name}`: {e}")
+                return
+
+        # Locate or create the public #borrowed-items channel (Active items board)
+        pub_channel_name = config.BORROWED_ITEMS_CHANNEL_NAME.lower()
+        pub_channel = discord.utils.get(guild.text_channels, name=pub_channel_name)
+        if not pub_channel:
+            try:
+                pub_channel = await guild.create_text_channel(
+                    name=pub_channel_name,
+                    topic="Active equipment and components currently borrowed by QP teams.",
+                )
+            except Exception as e:
+                await message.reply(f"❌ Could not find or create `#{pub_channel_name}`: {e}")
                 return
 
         now_ts = int(datetime.now().timestamp())
-        embed = discord.Embed(
+
+        # 1. Build private #inventory embed (Audit card)
+        priv_embed = discord.Embed(
             title=f"📦 Borrowed Item: {item_desc}",
             color=discord.Color.gold(),
             timestamp=datetime.now(),
         )
-        embed.add_field(name="🏷️ Team", value=f"Team {team_num}" if team_num else "Unassigned", inline=True)
-        embed.add_field(name="👤 Borrower", value=message.author.mention, inline=True)
-        embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
-        embed.add_field(name="📝 Item Description", value=item_desc, inline=False)
-        embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
-        embed.set_image(url=image_attachments[0].url)
-        embed.set_footer(text=f"Logged by {message.author.display_name} • Click 'Request Return' when returning to lab")
+        priv_embed.add_field(name="🏷️ Team", value=f"Team {team_num}" if team_num else "Unassigned", inline=True)
+        priv_embed.add_field(name="👤 Borrower", value=message.author.mention, inline=True)
+        priv_embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
+        priv_embed.add_field(name="📝 Item Description", value=item_desc, inline=False)
+        priv_embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
+        priv_embed.set_image(url=image_attachments[0].url)
+        priv_embed.set_footer(text=f"Logged by {message.author.display_name} • Internal Leadership Record")
+
+        # 2. Build public #borrowed-items embed (Active board card)
+        pub_embed = discord.Embed(
+            title=f"📦 Active Checkout: {item_desc}",
+            color=discord.Color.gold(),
+            timestamp=datetime.now(),
+        )
+        pub_embed.add_field(name="🏷️ Team", value=f"Team {team_num}" if team_num else "Unassigned", inline=True)
+        pub_embed.add_field(name="👤 Borrower", value=message.author.mention, inline=True)
+        pub_embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
+        pub_embed.add_field(name="📝 Item Details", value=item_desc, inline=False)
+        pub_embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
+        pub_embed.set_image(url=image_attachments[0].url)
+        pub_embed.set_footer(text="Borrowed from IEEE Project Space • Click 'Request Return' when returning to lab")
 
         # Save to database
         loan_id = database.create_photo_loan(
@@ -337,26 +471,43 @@ class InventoryCog(commands.Cog):
             item_description=item_desc,
             image_url=image_attachments[0].url,
             log_channel_id=inv_channel.id,
+            public_channel_id=pub_channel.id,
             thread_id=message.channel.id,
         )
 
-        view = BorrowReturnControlView()
-        log_msg = await inv_channel.send(embed=embed, view=view)
-        database.update_photo_loan_message(loan_id, inv_channel.id, log_msg.id)
+        # Post private card to #inventory
+        priv_view = InventoryReturnControlView()
+        priv_msg = await inv_channel.send(embed=priv_embed, view=priv_view)
 
-        # Send confirmation in thread
+        # Post active card to #borrowed-items
+        pub_view = PublicBorrowReturnView()
+        pub_msg = await pub_channel.send(embed=pub_embed, view=pub_view)
+
+        database.update_photo_loan_messages(
+            loan_id,
+            log_channel_id=inv_channel.id,
+            log_message_id=priv_msg.id,
+            public_channel_id=pub_channel.id,
+            public_message_id=pub_msg.id,
+        )
+
+        # 3. Send self-contained Receipt to the participant in the thread (linking to #borrowed-items!)
         confirm_embed = discord.Embed(
-            title="✅ Item Successfully Logged!",
+            title="✅ Item Checkout Confirmed!",
             description=(
-                f"Your borrowed item has been officially logged to {inv_channel.mention}!\n\n"
-                f"[**Jump to Inventory Record**]({log_msg.jump_url})\n\n"
-                "**Return Policy:**\n"
-                "When your team finishes with the equipment or at the end of the quarter, "
-                "return it to the IEEE Project Space and click **Request Return 📦** on the inventory record."
+                f"Your borrowed item has been officially logged and is now visible on the active board in {pub_channel.mention}!\n\n"
+                f"[**View Active Card in #{pub_channel.name}**]({pub_msg.jump_url})\n\n"
+                "**Return Instructions:**\n"
+                "When your team finishes with the equipment or at the end of the quarter, return it to the IEEE Project Space (Jacobs Hall 4309) during Open Access Hours. "
+                f"You can click **Request Return 📦** on your card in {pub_channel.mention} when dropping off items."
             ),
             color=discord.Color.green(),
         )
-        confirm_embed.set_footer(text="This thread will automatically archive in 24 hours.")
+        confirm_embed.add_field(name="🏷️ Team", value=f"Team {team_num}" if team_num else "Unassigned", inline=True)
+        confirm_embed.add_field(name="📝 Item", value=item_desc, inline=True)
+        confirm_embed.add_field(name="⏰ Time", value=f"<t:{now_ts}:t>", inline=True)
+        confirm_embed.set_thumbnail(url=image_attachments[0].url)
+        confirm_embed.set_footer(text="Receipt saved • This thread will remain open for 24 hours.")
         await message.reply(embed=confirm_embed)
 
     # ==========================================
@@ -412,10 +563,10 @@ class InventoryCog(commands.Cog):
                 "1. Click the **'📸 Borrow Lab Item'** button below.\n"
                 "2. The bot creates a private checkout thread for your team.\n"
                 "3. In the thread, upload a **photo** of the item along with the **item name & quantity**.\n"
-                "4. Your checkout is automatically logged to `#inventory`!\n\n"
+                "4. Your checkout is automatically logged to `#borrowed-items` for all teams to see, and archived in `#inventory` for Leadership!\n\n"
                 "**Returning Items:**\n"
                 "Return all items to the Project Space when your team finishes or by the end of the quarter. "
-                "Click **Request Return 📦** on your `#inventory` post when dropping off items."
+                "Click **Request Return 📦** on your `#borrowed-items` post when dropping off items."
             ),
             color=discord.Color.blue(),
         )
@@ -466,31 +617,59 @@ class InventoryCog(commands.Cog):
             await interaction.response.send_message("❌ Guild context required.", ephemeral=True)
             return
 
-        target_channel_name = config.INVENTORY_CHANNEL_NAME.lower()
-        inv_channel = discord.utils.get(guild.text_channels, name=target_channel_name)
+        inv_channel_name = config.INVENTORY_CHANNEL_NAME.lower()
+        inv_channel = discord.utils.get(guild.text_channels, name=inv_channel_name)
         if not inv_channel:
             try:
                 inv_channel = await guild.create_text_channel(
-                    name=target_channel_name,
-                    topic="Official photo-based log of borrowed lab components and equipment.",
+                    name=inv_channel_name,
+                    topic="Internal audit log of borrowed lab components and equipment (Leadership only).",
                 )
             except Exception as e:
-                await interaction.response.send_message(f"❌ Could not find or create `#{target_channel_name}`: {e}", ephemeral=True)
+                await interaction.response.send_message(f"❌ Could not find or create `#{inv_channel_name}`: {e}", ephemeral=True)
+                return
+
+        pub_channel_name = config.BORROWED_ITEMS_CHANNEL_NAME.lower()
+        pub_channel = discord.utils.get(guild.text_channels, name=pub_channel_name)
+        if not pub_channel:
+            try:
+                pub_channel = await guild.create_text_channel(
+                    name=pub_channel_name,
+                    topic="Active equipment and components currently borrowed by QP teams.",
+                )
+            except Exception as e:
+                await interaction.response.send_message(f"❌ Could not find or create `#{pub_channel_name}`: {e}", ephemeral=True)
                 return
 
         now_ts = int(datetime.now().timestamp())
-        embed = discord.Embed(
+
+        # Private audit card
+        priv_embed = discord.Embed(
             title=f"📦 Borrowed Item: {item.strip()}",
             color=discord.Color.gold(),
             timestamp=datetime.now(),
         )
-        embed.add_field(name="🏷️ Team", value=f"Team {team}" if team else "Unassigned", inline=True)
-        embed.add_field(name="👤 Borrower", value=interaction.user.mention, inline=True)
-        embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
-        embed.add_field(name="📝 Item Description", value=item.strip(), inline=False)
-        embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
-        embed.set_image(url=image.url)
-        embed.set_footer(text=f"Logged by {interaction.user.display_name} • Click 'Request Return' when returning to lab")
+        priv_embed.add_field(name="🏷️ Team", value=f"Team {team}" if team else "Unassigned", inline=True)
+        priv_embed.add_field(name="👤 Borrower", value=interaction.user.mention, inline=True)
+        priv_embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
+        priv_embed.add_field(name="📝 Item Description", value=item.strip(), inline=False)
+        priv_embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
+        priv_embed.set_image(url=image.url)
+        priv_embed.set_footer(text=f"Logged by {interaction.user.display_name} • Internal Leadership Record")
+
+        # Public active card
+        pub_embed = discord.Embed(
+            title=f"📦 Active Checkout: {item.strip()}",
+            color=discord.Color.gold(),
+            timestamp=datetime.now(),
+        )
+        pub_embed.add_field(name="🏷️ Team", value=f"Team {team}" if team else "Unassigned", inline=True)
+        pub_embed.add_field(name="👤 Borrower", value=interaction.user.mention, inline=True)
+        pub_embed.add_field(name="📊 Status", value="🟡 **Borrowed (In Use)**", inline=True)
+        pub_embed.add_field(name="📝 Item Details", value=item.strip(), inline=False)
+        pub_embed.add_field(name="⏰ Borrowed Time", value=f"<t:{now_ts}:F> (<t:{now_ts}:R>)", inline=False)
+        pub_embed.set_image(url=image.url)
+        pub_embed.set_footer(text="Borrowed from IEEE Project Space • Click 'Request Return' when returning to lab")
 
         loan_id = database.create_photo_loan(
             team_number=team or 0,
@@ -498,14 +677,25 @@ class InventoryCog(commands.Cog):
             item_description=item.strip(),
             image_url=image.url,
             log_channel_id=inv_channel.id,
+            public_channel_id=pub_channel.id,
         )
 
-        view = BorrowReturnControlView()
-        log_msg = await inv_channel.send(embed=embed, view=view)
-        database.update_photo_loan_message(loan_id, inv_channel.id, log_msg.id)
+        priv_view = InventoryReturnControlView()
+        priv_msg = await inv_channel.send(embed=priv_embed, view=priv_view)
+
+        pub_view = PublicBorrowReturnView()
+        pub_msg = await pub_channel.send(embed=pub_embed, view=pub_view)
+
+        database.update_photo_loan_messages(
+            loan_id,
+            log_channel_id=inv_channel.id,
+            log_message_id=priv_msg.id,
+            public_channel_id=pub_channel.id,
+            public_message_id=pub_msg.id,
+        )
 
         await interaction.response.send_message(
-            f"✅ **Item successfully logged to {inv_channel.mention}!**\n[Jump to Record]({log_msg.jump_url})",
+            f"✅ **Item successfully logged to {pub_channel.mention}!**\n[Jump to Active Card]({pub_msg.jump_url})",
             ephemeral=True,
         )
 
@@ -571,8 +761,8 @@ class InventoryCog(commands.Cog):
             borrower_mention = f"<@{loan['borrower_id']}>" if loan.get("borrower_id") else "Unknown"
             status_str = status_emojis.get(loan.get("status"), "Unknown")
             jump_link = ""
-            if loan.get("log_channel_id") and loan.get("log_message_id"):
-                jump_link = f"\n• [View Log Post](https://discord.com/channels/{interaction.guild_id}/{loan['log_channel_id']}/{loan['log_message_id']})"
+            if loan.get("status") != "returned" and loan.get("public_channel_id") and loan.get("public_message_id"):
+                jump_link = f"\n• [View Active Card](https://discord.com/channels/{interaction.guild_id}/{loan['public_channel_id']}/{loan['public_message_id']})"
 
             field_name = f"Team {loan['team_number']} • {loan['item_description'][:35]}"
             field_val = (
@@ -583,7 +773,6 @@ class InventoryCog(commands.Cog):
             )
             embed.add_field(name=field_name, value=field_val, inline=False)
 
-        # Set image to first loan thumbnail if available
         if loans[0].get("image_url"):
             embed.set_thumbnail(url=loans[0]["image_url"])
 
@@ -672,7 +861,7 @@ class InventoryCog(commands.Cog):
             color=discord.Color.green(),
         )
 
-        for item in items[:25]:  # Discord embed field limit
+        for item in items[:25]:
             status_emoji = "🟢" if item["available_qty"] > 0 else "🔴"
             field_name = f"{status_emoji} {item['name']} (ID: {item['id']})"
             field_val = (

@@ -117,10 +117,20 @@ def init_db():
                 returned_at TEXT,
                 log_channel_id INTEGER,
                 log_message_id INTEGER,
+                public_channel_id INTEGER,
+                public_message_id INTEGER,
                 thread_id INTEGER,
                 confirmed_by_id INTEGER
             );
         """)
+
+        # Migration: Ensure public_channel_id and public_message_id exist on older databases
+        cursor = conn.execute("PRAGMA table_info(photo_loans);")
+        pl_cols = [row[1] for row in cursor.fetchall()]
+        if "public_channel_id" not in pl_cols:
+            conn.execute("ALTER TABLE photo_loans ADD COLUMN public_channel_id INTEGER;")
+        if "public_message_id" not in pl_cols:
+            conn.execute("ALTER TABLE photo_loans ADD COLUMN public_message_id INTEGER;")
 
         # Initialize default budgets for all teams if missing
         for t in range(1, config.MAX_TEAMS + 1):
@@ -679,6 +689,8 @@ def create_photo_loan(
     image_url: str,
     log_channel_id: Optional[int] = None,
     log_message_id: Optional[int] = None,
+    public_channel_id: Optional[int] = None,
+    public_message_id: Optional[int] = None,
     thread_id: Optional[int] = None,
 ) -> int:
     """Create a new photo-based item loan record and return its ID."""
@@ -688,24 +700,39 @@ def create_photo_loan(
         cursor = conn.execute("""
             INSERT INTO photo_loans (
                 team_number, borrower_id, item_description, image_url,
-                status, borrowed_at, log_channel_id, log_message_id, thread_id
-            ) VALUES (?, ?, ?, ?, 'borrowed', ?, ?, ?, ?)
-        """, (team_number, borrower_id, item_description, image_url, now_str, log_channel_id, log_message_id, thread_id))
+                status, borrowed_at, log_channel_id, log_message_id,
+                public_channel_id, public_message_id, thread_id
+            ) VALUES (?, ?, ?, ?, 'borrowed', ?, ?, ?, ?, ?, ?)
+        """, (team_number, borrower_id, item_description, image_url, now_str, log_channel_id, log_message_id, public_channel_id, public_message_id, thread_id))
         loan_id = cursor.lastrowid
     conn.close()
     return loan_id
 
 
-def update_photo_loan_message(loan_id: int, log_channel_id: int, log_message_id: int):
-    """Link the Discord message ID and channel ID to the loan record."""
+def update_photo_loan_messages(
+    loan_id: int,
+    log_channel_id: Optional[int] = None,
+    log_message_id: Optional[int] = None,
+    public_channel_id: Optional[int] = None,
+    public_message_id: Optional[int] = None,
+):
+    """Link the Discord message and channel IDs (both private log and public active board)."""
     conn = get_db_connection()
     with conn:
         conn.execute("""
             UPDATE photo_loans
-            SET log_channel_id = ?, log_message_id = ?
+            SET log_channel_id = COALESCE(?, log_channel_id),
+                log_message_id = COALESCE(?, log_message_id),
+                public_channel_id = COALESCE(?, public_channel_id),
+                public_message_id = COALESCE(?, public_message_id)
             WHERE id = ?
-        """, (log_channel_id, log_message_id, loan_id))
+        """, (log_channel_id, log_message_id, public_channel_id, public_message_id, loan_id))
     conn.close()
+
+
+def update_photo_loan_message(loan_id: int, log_channel_id: int, log_message_id: int):
+    """Backwards compatibility wrapper for update_photo_loan_messages."""
+    update_photo_loan_messages(loan_id, log_channel_id=log_channel_id, log_message_id=log_message_id)
 
 
 def update_photo_loan_status(loan_id: int, status: str, confirmed_by_id: Optional[int] = None) -> bool:
@@ -739,9 +766,12 @@ def get_photo_loan(loan_id: int) -> Optional[Dict[str, Any]]:
 
 
 def get_photo_loan_by_message(message_id: int) -> Optional[Dict[str, Any]]:
-    """Retrieve a photo loan record by its log embed message ID."""
+    """Retrieve a photo loan record by either its private log message ID or public active card message ID."""
     conn = get_db_connection()
-    row = conn.execute("SELECT * FROM photo_loans WHERE log_message_id = ?", (message_id,)).fetchone()
+    row = conn.execute("""
+        SELECT * FROM photo_loans
+        WHERE log_message_id = ? OR public_message_id = ?
+    """, (message_id, message_id)).fetchone()
     conn.close()
     return dict(row) if row else None
 

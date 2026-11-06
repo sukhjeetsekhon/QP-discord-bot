@@ -48,14 +48,10 @@ A Discord bot built with Python and `discord.py` for the **UCSD IEEE Quarterly P
   * **Close Channel 🔒**: Confirms and deletes the private channel with countdown once assistance wraps up.
 
 ### 5. 📦 Lab Inventory Tracking & Photo-Based Item Borrowing
-* **📸 Photo-Based Borrowing System (`#borrow-items` ➔ `#inventory`)**:
-  * Run `/setup-borrow-panel` to post a persistent **"Borrow Lab Item 📸"** panel in `#borrow-items`.
-  * Participants click to launch a private 24-hour checkout thread where the bot auto-detects their `Team <N>` role.
-  * Participants upload a photo of the borrowed parts along with the item name & quantity.
-  * The bot automatically packages and posts an official real-time status card to `#inventory` with the image and timestamps.
-  * **Two-Step Return Workflow**:
-    * Participants click **Request Return 📦** on their `#inventory` card when dropping items off in the Project Space.
-    * Leadership (@QP Chair, @Mentor, @Officer) inspects the item and clicks **Confirm Return ✅** to verify return and timestamp it.
+* **📸 Three-Channel Photo Borrowing System (`#borrow-items` ➔ `#borrowed-items` ➔ `#inventory`)**:
+  * **`#borrow-items`**: Public channel where participants click the persistent **"Borrow Lab Item 📸"** panel to open a private 24-hour checkout thread.
+  * **`#borrowed-items`**: Public active board displaying cards of items currently in use by teams. When returning an item, borrowers click **Request Return 📦**.
+  * **`#inventory`**: Private internal audit channel for Leadership. When officers inspect returned equipment, they click **Confirm Return ✅**, which permanently stamps the record in `#inventory` and automatically deletes the card from `#borrowed-items`!
 * **Commands**:
   * `/setup-borrow-panel [channel:]`: Deploy the persistent borrowing panel in `#borrow-items` (Leadership only).
   * `/borrow-photo image: item: [team:]`: Direct slash command alternative to log an item with an attached photo.

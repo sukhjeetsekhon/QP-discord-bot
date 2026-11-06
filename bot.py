@@ -7,7 +7,7 @@ import database
 from cogs.team_assignment import TeamAssignmentView
 from cogs.hardware_tickets import TicketRequestView, TicketControlView
 from cogs.mentor_queue import MentorQueueSetupView, MentorTicketControlView
-from cogs.inventory import BorrowItemPanelButtonView, BorrowReturnControlView
+from cogs.inventory import BorrowItemPanelButtonView, PublicBorrowReturnView, InventoryReturnControlView
 
 # Configure required Discord intents
 def make_intents(enable_message_content: bool = True, enable_members: bool = True) -> discord.Intents:
@@ -43,7 +43,8 @@ class QPBot(commands.Bot):
         self.add_view(MentorQueueSetupView())
         self.add_view(MentorTicketControlView())
         self.add_view(BorrowItemPanelButtonView())
-        self.add_view(BorrowReturnControlView())
+        self.add_view(PublicBorrowReturnView())
+        self.add_view(InventoryReturnControlView())
 
         # 3. Load extension cogs
         initial_extensions = [

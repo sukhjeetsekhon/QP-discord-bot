@@ -49,14 +49,14 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
   - When finished, return tools to the lab and record with `/return team: item: quantity:`.
   - All checkouts and returns are strictly timestamped to ensure shared tools (e.g. wire strippers, heat guns, multimeter probes) remain accounted for.
 - **Photo-Based Item Borrowing Workflow**:
-  Because the full project space inventory is still being catalogued, borrowing items is managed via photo checkouts:
-  1. Go to the `#borrow-items` channel.
-  2. Click the **'📸 Borrow Lab Item'** button on the panel.
-  3. The bot creates a private 24-hour checkout thread for your team.
-  4. In that thread, reply with a **photo** of the item(s) and the **item name/description & quantity** (e.g. `2x Arduino Uno, 1x breadboard`).
-  5. The bot packages and posts the official checkout card to `#inventory` with the timestamp and team number.
-  6. When returning equipment to the Project Space, click **Request Return 📦** on the `#inventory` card so an officer can inspect and click **Confirm Return ✅**.
-  7. Teams can check their active borrowed items at any time with `/borrowed-items`.
+  Because the full project space inventory is still being catalogued, borrowing items is managed via photo checkouts across three dedicated channels:
+  1. **#borrow-items (Public)**: Head here and click the **'📸 Borrow Lab Item'** button on the panel.
+  2. The bot creates a private 24-hour checkout thread for your team.
+  3. In that thread, reply with a **photo** of the item(s) and the **item name/description & quantity** (e.g. `2x Arduino Uno, 1x breadboard`).
+  4. The bot posts the active equipment card to **`#borrowed-items`** (public board showing all items currently in use) and files an internal audit copy in **`#inventory`** (private to Leadership).
+  5. You receive a self-contained receipt in your private thread with a link to your active card in `#borrowed-items`.
+  6. **Returning Equipment**: When returning items to the Project Space during Open Access Hours, click **Request Return 📦** on your card in `#borrowed-items`. An officer inspects the item and clicks **Confirm Return ✅** in `#inventory`, which automatically removes the card from the active `#borrowed-items` feed!
+  7. Teams can also view their active borrowed items at any time with `/borrowed-items`.
 
 ---
 
