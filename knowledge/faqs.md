@@ -99,3 +99,49 @@ This document contains answers to frequently asked questions regarding the Fall 
 • **Workathons:** There are no more workathons for Fall Quarter 2026 due to scheduling conflicts.
 • **LiPo Batteries:** No specific QP ban, but you must follow standard battery safety practices (proper chargers, never charge unattended, use fireproof surfaces/bags, inspect for damage).
 
+---
+
+## 7. 🤖 Discord Bot Commands & Self-Service Guide
+
+### What slash commands can participants use?
+• **`/my-team`:** Instant dashboard of your team roster, remaining budget, and borrowed lab items.
+• **`/team-info team:`:** Look up any team's (1–28) roster, budget status, and borrowed equipment.
+• **`/ask-ai question: [private:]`:** Ask the AI helper questions about competition rules, schedules, budgets, circuit schematics, microcontroller pinouts, or code debugging.
+• **`/ai-status`:** Check the operational health of the AI assistant, loaded knowledge files, and synced channels.
+• **`/inventory [search:] [category:]`:** Search parts and tools in the IEEE lab and find their cabinet/bin storage locations.
+• **`/whereis item:`:** Check whether an item is in the lab or which teams have borrowed units.
+• **`/borrow-photo image: item: [team:]`:** Directly log borrowed lab items with a photo attachment.
+• **`/borrowed-items [team:] [status:]`:** View visual photo cards of borrowed items currently in use by your team or all teams.
+• **`/borrowed [team:]`:** View a text list of inventory items checked out by your team or another team.
+• **`/loan-history [team:] [item:] [limit:]`:** View chronological audit logs of checkouts and returns.
+• **`/budget [team:]`:** Check hardware budget balance and purchase history.
+
+### How do I join my team on Discord?
+• Go to the **`#team-assignment`** channel.
+• Click the **"Join Team"** button.
+• In the pop-up modal, type your team number (`1` to `28`) and submit.
+• You will receive your `Team <N>` role and immediate private access to `#team-<N>` and `Team <N> VC`.
+
+### How do I borrow tools or components from the Project Space?
+• Head to **`#borrow-items`** and click **"📸 Borrow Lab Item"** (or use the `/borrow-photo` command).
+• A private 24-hour checkout thread opens for your team.
+• Upload a photo of the item(s) and reply with the description and quantity (e.g. `2x SG90 Servos, 1x Breadboard`).
+• The bot creates an active equipment card in **`#borrowed-items`** and archives a private record in **`#inventory`**.
+
+### How do I return borrowed items?
+• Bring the physical items to the IEEE Project Space (Jacobs Hall 4309) during Open Access Hours.
+• Find your item's card in **`#borrowed-items`** and click **"Request Return 📦"**.
+• The card status switches to `⏳ Return Pending Review` and pings `@QP Chair` in `#inventory`.
+• The on-duty officer inspects the hardware and clicks **"Confirm Return ✅"**, automatically clearing your card from the active board!
+
+### How do I get mentor help when I am stuck on a technical bug?
+• Go to the **`#mentor-queue`** (or `#help-tickets`) channel.
+• Click **"🙋 Request Mentor"**.
+• Enter a brief description of what you need help with and where you are located (e.g. `Project Space Bench 3` or `Team 4 VC`).
+• A private help ticket (`#help-X`) is opened. An IEEE mentor will claim your request and assist you!
+
+### Why did a command tell me "Only Leadership can run this"?
+• Administrative commands (such as `/inventory-add`, `/checkout`, `/return`, `/budget-adjust`, `/budget-summary`, and setup commands) are reserved for the **QP Chair**, **Officers**, and **Server Administrators**.
+• Participants do not need to run these commands directly—officers use them to manage inventory stock, configure channels, and audit lab hardware.
+
+

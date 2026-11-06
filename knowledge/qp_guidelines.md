@@ -41,22 +41,22 @@ UCSD IEEE Quarterly Projects is a premier 10-week hands-on engineering program d
 
 ## 5. 📦 Lab Inventory & Tool Checkouts
 - The IEEE Student Lab stocks shared tools and common parts (microcontrollers, sensors, motors, breadboards, jumper wires, passive components).
-- **Checking Availability**:
-  - Use `/inventory` to browse available parts in stock and their physical location in the lab.
-  - Use `/whereis item:` to see how many units are in the lab vs. checked out by other teams.
-- **Checkouts & Returns**:
-  - Equipment borrowed from the lab must be checked out using `/checkout team: item: quantity:`.
-  - When finished, return tools to the lab and record with `/return team: item: quantity:`.
-  - All checkouts and returns are strictly timestamped to ensure shared tools (e.g. wire strippers, heat guns, multimeter probes) remain accounted for.
-- **Photo-Based Item Borrowing Workflow**:
+- **Checking Availability & Locations**:
+  - Use `/inventory` to browse available parts in stock and their physical location in the lab (e.g. cabinet and bin).
+  - Use `/whereis item:` to see how many units are in the lab vs. which teams currently have units checked out.
+- **Participant Photo-Based Item Borrowing Workflow**:
   Because the full project space inventory is still being catalogued, borrowing items is managed via photo checkouts across three dedicated channels:
-  1. **#borrow-items (Public)**: Head here and click the **'📸 Borrow Lab Item'** button on the panel.
+  1. **#borrow-items (Public)**: Head here and click the **'📸 Borrow Lab Item'** button on the panel (or run `/borrow-photo image: item:`).
   2. The bot creates a private 24-hour checkout thread for your team.
   3. In that thread, reply with a **photo** of the item(s) and the **item name/description & quantity** (e.g. `2x Arduino Uno, 1x breadboard`).
   4. The bot posts the active equipment card to **`#borrowed-items`** (public board showing all items currently in use) and files an internal audit copy in **`#inventory`** (private to Leadership).
   5. You receive a self-contained receipt in your private thread with a link to your active card in `#borrowed-items`.
   6. **Returning Equipment**: When returning items to the Project Space during Open Access Hours, click **Request Return 📦** on your card in `#borrowed-items`. An officer inspects the item and clicks **Confirm Return ✅** in `#inventory`, which automatically removes the card from the active `#borrowed-items` feed!
-  7. Teams can also view their active borrowed items at any time with `/borrowed-items`.
+  7. Teams can view their active borrowed items at any time with `/borrowed-items` or `/my-team`.
+- **Manual Officer Checkouts & Returns**:
+  - For cataloged inventory items, officers can manually log checkouts with `/checkout` and returns with `/return`.
+- **Detailed Commands Guide**:
+  - See `bot_commands_guide.md` for full instructions, options, and examples for every bot command!
 
 ---
 
