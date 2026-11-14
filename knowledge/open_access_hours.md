@@ -3,7 +3,7 @@
 ## Overview & Description
 "Officers host drop-in hours in Project Space. Use the calendar to see who is there and when."
 
-• **Location:** IEEE Project Space (Jacobs Hall 4309, 4th Floor)
+• **Location:** IEEE Project Space (Jacobs Hall 4710 / EBU1-4710, 4th Floor)
 • **Live Calendar & Join Link:** https://ieeeatucsd.org/join
 • **Purpose:** During Open Access Hours (OAH), an IEEE officer is present with the lab doors open for any student to drop in, work on their Quarterly Projects, solder under supervision, use tools, or get project advice.
 

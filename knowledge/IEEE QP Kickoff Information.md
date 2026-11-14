@@ -38,7 +38,7 @@ There will not be enough QP-hosted events for you and your team to complete your
 
 ## Where can we work on our Project?
 
-You can work on your project remotely with your team, going to a UCSD makerspace, or going to the IEEE project space (4th Floor Jacobs Hall). The IEEE Project Space (PS) has Open Access Hours (OAH) which are posted on the IEEE UCSD website. During OAH, an officer will be at the project space with the door set open for any student to come in to work under supervision. There are soldering stations available, breadboards, wires, resistors, electronic components and Arduino boards.
+You can work on your project remotely with your team, going to a UCSD makerspace, or going to the IEEE project space (Jacobs Hall 4710 / EBU1-4710, 4th Floor). The IEEE Project Space (PS) has Open Access Hours (OAH) which are posted on the IEEE UCSD website. During OAH, an officer will be at the project space with the door set open for any student to come in to work under supervision. There are soldering stations available, breadboards, wires, resistors, electronic components and Arduino boards.
 
 ## What can we use from the Project Space?
 

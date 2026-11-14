@@ -402,7 +402,8 @@ class TestOAHEmbedFormatting(unittest.TestCase):
         embed = build_oah_embed(res)
         full_text = (embed.description or "") + " " + " ".join(f.value for f in embed.fields)
         self.assertIn("https://ieeeatucsd.org/join", full_text)
-        self.assertIn("Jacobs Hall 4309", full_text)
+        self.assertIn("Jacobs Hall 4710", full_text)
+        self.assertIn("EBU1-4710", full_text)
         self.assertIn("4th Floor", full_text)
 
     def test_embed_strictly_forbids_markdown_tables(self):

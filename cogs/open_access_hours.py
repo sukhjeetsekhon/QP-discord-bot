@@ -12,7 +12,7 @@ from discord import app_commands
 from discord.ext import commands
 
 CALENDAR_URL = "https://ieeeatucsd.org/join"
-LOCATION_TEXT = "IEEE Project Space (Jacobs Hall 4309, 4th Floor)"
+LOCATION_TEXT = "IEEE Project Space (Jacobs Hall 4710 / EBU1-4710, 4th Floor)"
 LOCATION_STR = LOCATION_TEXT
 
 WEEKLY_SCHEDULE_TEXT = (

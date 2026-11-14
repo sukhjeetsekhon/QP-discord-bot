@@ -79,7 +79,7 @@ Welcome to the official command guide for the UCSD IEEE Quarterly Projects Disco
 
 ## 4. 🏢 Lab Access & Open Access Hours (OAH)
 
-The IEEE Project Space (Jacobs Hall 4309, 4th Floor) hosts drop-in Open Access Hours hosted by IEEE officers. You can visit to work on projects, solder under supervision, use test equipment (oscilloscopes, power supplies, multimeters), or get technical help.
+The IEEE Project Space (Jacobs Hall 4710 / EBU1-4710, 4th Floor) hosts drop-in Open Access Hours hosted by IEEE officers. You can visit to work on projects, solder under supervision, use test equipment (oscilloscopes, power supplies, multimeters), or get technical help.
 
 ---
 
@@ -266,7 +266,7 @@ In addition to slash commands, several key workflows are handled through interac
 ---
 
 ### Flow D: Returning Lab Items (`#borrowed-items`)
-1. Bring the borrowed item(s) to the **IEEE Project Space (Jacobs Hall 4309)** during **Open Access Hours (OAH)**.
+1. Bring the borrowed item(s) to the **IEEE Project Space (Jacobs Hall 4710 / EBU1-4710)** during **Open Access Hours (OAH)**.
 2. Open the **`#borrowed-items`** channel on Discord.
 3. Locate your team's active loan card and click the **"Request Return 📦"** button.
 4. The card status changes to `⏳ Return Pending Review`, and an alert pings `@QP Chair` in `#inventory`.

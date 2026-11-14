@@ -29,7 +29,7 @@ The bot automatically drafts all 14 required fields, packages them into a clean 
 | 2 | **Event Description** | Formal, professional description outlining technical/educational purpose, hands-on student engineering activities, and room utilization for engineering department room reservation approval and official academic records. |
 | 3 | **Event Type** | Automatically locked to **`Projects`**. |
 | 4 | **Department** | Automatically locked to **`Projects`**. |
-| 5 | **Location** | Extracted from prompt or defaults to *IEEE Project Space (Jacobs Hall 4309)*. |
+| 5 | **Location** | Extracted from prompt or defaults to *IEEE Project Space (Jacobs Hall 4710 / EBU1-4710)*. |
 | 6 | **Event Date** | Fully formatted date (e.g. *Wednesday, November 12, 2026*). |
 | 7 | **Start Time** | Start time (e.g. *6:00 PM*). |
 | 8 | **End Time** | End time (e.g. *8:00 PM*). |
@@ -47,7 +47,7 @@ The bot automatically drafts all 14 required fields, packages them into a clean 
 ### Step 1: Run the Command
 In any staff channel (or in `#event-requests`), run:
 ```text
-/request-event prompt: "Midterm PCB Soldering Workshop next Wednesday Nov 12 from 6 to 8 PM in Jacobs Hall 4309 with pizza from AS funding, expecting 45 people"
+/request-event prompt: "Midterm PCB Soldering Workshop next Wednesday Nov 12 from 6 to 8 PM in Jacobs Hall 4710 (EBU1-4710) with pizza from AS funding, expecting 45 people"
 ```
 
 ### Step 2: Private Preview

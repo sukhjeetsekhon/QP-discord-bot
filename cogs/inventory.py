@@ -607,7 +607,7 @@ class InventoryCog(commands.Cog):
                 f"Your borrowed item has been officially logged and is now visible on the active board in {pub_channel.mention}!\n\n"
                 f"[**View Active Card in #{pub_channel.name}**]({pub_msg.jump_url})\n\n"
                 "**Return Instructions:**\n"
-                "When your team finishes with the equipment or at the end of the quarter, return it to the IEEE Project Space (Jacobs Hall 4309) during Open Access Hours. "
+                "When your team finishes with the equipment or at the end of the quarter, return it to the IEEE Project Space (Jacobs Hall 4710 / EBU1-4710) during Open Access Hours. "
                 f"You can click **Request Return 📦** on your card in {pub_channel.mention} when dropping off items."
             ),
             color=discord.Color.green(),
@@ -667,7 +667,7 @@ class InventoryCog(commands.Cog):
         embed = discord.Embed(
             title="📸 IEEE Lab Item Borrowing & Inventory Log",
             description=(
-                "Borrowing components or tools from the **IEEE Project Space (Jacobs Hall 4309)**?\n\n"
+                "Borrowing components or tools from the **IEEE Project Space (Jacobs Hall 4710 / EBU1-4710)**?\n\n"
                 "**How to Log Borrowed Items:**\n"
                 "1. Click the **'📸 Borrow Lab Item'** button below.\n"
                 "2. The bot creates a private checkout thread for your team.\n"
@@ -681,7 +681,7 @@ class InventoryCog(commands.Cog):
         )
         embed.add_field(
             name="📍 Project Space Location",
-            value="Jacobs Hall 4309 (4th Floor) • During Open Access Hours",
+            value="Jacobs Hall 4710 (EBU1-4710, 4th Floor) • During Open Access Hours",
             inline=False,
         )
         embed.set_footer(text="IEEE Quarterly Projects • Equipment Tracking")

@@ -58,13 +58,13 @@ This document contains answers to frequently asked questions regarding the Fall 
 • **No More Workathons:** There are **no more workathons scheduled for Fall Quarter 2026** due to university room scheduling conflicts and other logistical issues.
 • **Where to Work:**
   - Teams should coordinate their own work sessions remotely or on campus.
-  - Teams can work in the **IEEE Project Space (Jacobs Hall 4309)** during **Open Access Hours (OAH)** under officer supervision.
+  - Teams can work in the **IEEE Project Space (Jacobs Hall 4710 / EBU1-4710)** during **Open Access Hours (OAH)** under officer supervision.
   - Campus makerspaces (EnVision Center, DIB) are also great places for project teams to meet.
 
 ### What are the Open Access Hours (OAH) for the IEEE Project Space?
 • **Description:** "Officers host drop-in hours in Project Space. Use the calendar to see who is there and when."
 • **Live Calendar:** Check https://ieeeatucsd.org/join for the live calendar and officer roster.
-• **Location:** IEEE Project Space (Jacobs Hall 4309, 4th Floor).
+• **Location:** IEEE Project Space (Jacobs Hall 4710 / EBU1-4710, 4th Floor).
 • **Weekly Schedule:**
   - **Monday:** 11:00 AM – 1:00 PM (Ridhi - VC Events), 3:00 PM – 5:00 PM (Sukhjeet - QP Chair), 5:30 PM – 7:30 PM (Nishant - Social Chair)
   - **Tuesday:** 11:00 AM – 1:00 PM (Aiden - President), 3:00 PM – 5:00 PM (Anthony - Design Chair), 5:00 PM – 7:00 PM (Daniel H - Marketing Chair), 5:00 PM – 8:00 PM (Ki - Webmaster)
@@ -137,7 +137,7 @@ This document contains answers to frequently asked questions regarding the Fall 
 • The bot creates an active equipment card in **`#borrowed-items`** and archives a private record in **`#inventory`**.
 
 ### How do I return borrowed items?
-• Bring the physical items to the IEEE Project Space (Jacobs Hall 4309) during Open Access Hours.
+• Bring the physical items to the IEEE Project Space (Jacobs Hall 4710 / EBU1-4710) during Open Access Hours.
 • Find your item's card in **`#borrowed-items`** and click **"Request Return 📦"**.
 • The card status switches to `⏳ Return Pending Review` and pings `@QP Chair` in `#inventory`.
 • The on-duty officer inspects the hardware and clicks **"Confirm Return ✅"**, automatically clearing your card from the active board!

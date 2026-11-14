@@ -27,7 +27,7 @@ EVENT_SYSTEM_INSTRUCTION = (
     "2. Department: Must ALWAYS be 'Projects'\n"
     "3. Event Code: Generate a clear, structured uppercase code (e.g. 'QP-WINTER-KICKOFF-26', 'QP-PCB-SOLDER-26', 'QP-WORKATHON-W5-26', 'QP-PROJECT-DEMO-26'). Allow up to 25-30 characters so quarter, year, and event topic are clearly identifiable for attendance tracking and university records.\n"
     "4. Event Description: Write a formal, professional description suitable for submission to the university engineering department for room reservation approvals and official academic records. Do NOT use casual social media hype, promotional slang, marketing buzzwords, or exclamation marks. Clearly and objectively state the educational and technical purpose of the event, the student engineering activities involved (e.g. hands-on soldering, circuit prototyping, embedded software debugging, technical design reviews), and the planned room and equipment utilization.\n"
-    "5. Location: Default to 'IEEE Project Space (Jacobs Hall 4309)' if not specified by the user.\n"
+    "5. Location: Default to 'IEEE Project Space (Jacobs Hall 4710 / EBU1-4710)' if not specified by the user.\n"
     "6. Event Date: Format clearly (e.g. 'Wednesday, November 12, 2026').\n"
     "7. Start Time & End Time: Standard format (e.g. '6:00 PM' and '8:00 PM').\n"
     "8. Flyers Needed: 'No' unless the user asks for physical posters/flyers.\n"
@@ -79,11 +79,11 @@ def fallback_event_parser(user_prompt: str) -> Dict[str, str]:
     logos = "IEEE, AS" if has_food else "IEEE"
 
     # Extract location if mentioned
-    loc = "IEEE Project Space (Jacobs Hall 4309)"
+    loc = "IEEE Project Space (Jacobs Hall 4710 / EBU1-4710)"
     if "jacobs" in prompt_lower:
-        loc = "Jacobs Hall 4309"
+        loc = "Jacobs Hall 4710 (EBU1-4710)"
     elif "ebu" in prompt_lower:
-        loc = "EBU-1"
+        loc = "EBU-1 4710"
     elif "warren" in prompt_lower:
         loc = "Warren Mall"
 

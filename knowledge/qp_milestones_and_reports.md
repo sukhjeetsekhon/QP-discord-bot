@@ -58,5 +58,5 @@ Quarterly Projects uses a broad, flexible milestone system so check-ins fit the 
 You don't have to wait for the next milestone form if your team is stuck:
 1. **Discord Mentor Queue**: Go to `#help-tickets` in the `Help Requests` category and click **"Request Mentor Help / Feedback"** to summon an available mentor to a private help channel.
 2. **Ask the AI**: Post your circuit, wiring, or programming questions in `#ask-ai`.
-3. **Open Access Hours**: Visit the IEEE Project Space (4th Floor Jacobs Hall) during Open Access Hours to debug with lab equipment and mentors.
+3. **Open Access Hours**: Visit the IEEE Project Space (Jacobs Hall 4710 / EBU1-4710, 4th Floor) during Open Access Hours to debug with lab equipment and mentors.
 
