@@ -55,6 +55,7 @@ class QPBot(commands.Bot):
             "cogs.inventory",
             "cogs.ai_help",
             "cogs.event_requests",
+            "cogs.open_access_hours",
         ]
         for ext in initial_extensions:
             try:

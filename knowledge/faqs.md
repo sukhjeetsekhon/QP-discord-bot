@@ -104,6 +104,7 @@ This document contains answers to frequently asked questions regarding the Fall 
 ## 7. 🤖 Discord Bot Commands & Self-Service Guide
 
 ### What slash commands can participants use?
+• **`/oah [full_week:] [private:]`:** Check whether the IEEE Project Space is currently open, who is on duty, and view today's schedule (or the next active day's schedule if closed). Includes a button to view the full week!
 • **`/my-team`:** Instant dashboard of your team roster, remaining budget, and borrowed lab items.
 • **`/team-info team:`:** Look up any team's (1–28) roster, budget status, and borrowed equipment.
 • **`/ask-ai question: [private:]`:** Ask the AI helper questions about competition rules, schedules, budgets, circuit schematics, microcontroller pinouts, or code debugging.
@@ -115,6 +116,13 @@ This document contains answers to frequently asked questions regarding the Fall 
 • **`/borrowed [team:]`:** View a text list of inventory items checked out by your team or another team.
 • **`/loan-history [team:] [item:] [limit:]`:** View chronological audit logs of checkouts and returns.
 • **`/budget [team:]`:** Check hardware budget balance and purchase history.
+
+### How do I check if the Project Space is currently open?
+• Run **`/oah`** in any channel!
+• The bot checks current Pacific Time and tells you if the lab is **`🟢 OPEN NOW`** (with current officers on duty) or **`🔴 CLOSED`**.
+• If closed between shifts today, it tells you when it reopens today.
+• If all shifts for today have finished (or on the weekend), it tells you when the **Next Open Access Hours** are and displays that day's complete schedule.
+• Click the **`[📅 View Full Week]`** button on the embed to toggle the complete weekly schedule!
 
 ### How do I join my team on Discord?
 • Go to the **`#team-assignment`** channel.

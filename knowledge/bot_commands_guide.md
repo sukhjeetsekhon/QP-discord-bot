@@ -77,7 +77,35 @@ Welcome to the official command guide for the UCSD IEEE Quarterly Projects Disco
 
 ---
 
-## 4. 📦 Lab Inventory & Tool Checkouts
+## 4. 🏢 Lab Access & Open Access Hours (OAH)
+
+The IEEE Project Space (Jacobs Hall 4309, 4th Floor) hosts drop-in Open Access Hours hosted by IEEE officers. You can visit to work on projects, solder under supervision, use test equipment (oscilloscopes, power supplies, multimeters), or get technical help.
+
+---
+
+### `/oah`
+- **Target Audience:** All participants.
+- **Description:** Check whether the IEEE Project Space is currently open, who is on duty right now, and view today's schedule (or the next active day's schedule if today's hours have ended or it's the weekend).
+- **Parameters:**
+  - `full_week` *(Optional, boolean, default: False)*: Set to `True` to display the complete Monday through Thursday weekly schedule.
+  - `private` *(Optional, boolean, default: False)*: Set to `True` if you want the answer to be visible only to you (ephemeral). Leave as `False` (default) so teammates in your channel can see it too.
+- **Smart Schedule Display:**
+  - **Open Now:** Shows a green status, lists the active on-duty officer(s) with their role and shift duration, and lists today's lineup.
+  - **Daytime Gap Between Shifts:** Shows a closed status, highlights the exact reopening time today (e.g. *Reopens today at 3:00 PM with Sukhjeet (QP Chair)*), and lists today's lineup.
+  - **After-Hours (Shifts Done for Today):** Shows closed for today and automatically displays the **Next Active Day's** complete schedule and officers (e.g. Monday evening shows Tuesday's lineup).
+  - **Weekends & Friday:** Shows closed for the weekend and automatically displays **Monday's** upcoming schedule.
+- **Interactive UI Button:**
+  - Every `/oah` embed includes a **`[📅 View Full Week]`** button. Clicking it instantly toggles between Today/Next Day and the Full Week schedule without re-running the command!
+- **Examples:**
+  ```text
+  /oah
+  /oah full_week: True
+  /oah private: True
+  ```
+
+---
+
+## 5. 📦 Lab Inventory & Tool Checkouts
 
 The IEEE Project Space stocks shared tools, development boards, sensors, and passive components. You can search inventory, check item locations, and log loans directly through the bot.
 
@@ -176,7 +204,7 @@ The IEEE Project Space stocks shared tools, development boards, sensors, and pas
 
 ---
 
-## 5. 💰 Budget Commands
+## 6. 💰 Budget Commands
 
 ### `/budget`
 - **Target Audience:** All participants.
@@ -195,7 +223,7 @@ The IEEE Project Space stocks shared tools, development boards, sensors, and pas
 
 ---
 
-## 6. 🛠️ Interactive Self-Service Panels (Buttons & Modals)
+## 7. 🛠️ Interactive Self-Service Panels (Buttons & Modals)
 
 In addition to slash commands, several key workflows are handled through interactive buttons in dedicated channels.
 
@@ -255,7 +283,7 @@ In addition to slash commands, several key workflows are handled through interac
 
 ---
 
-## 7. 🔒 Leadership & Admin Commands (Reference for Participants)
+## 8. 🔒 Leadership & Admin Commands (Reference for Participants)
 
 The following commands are strictly restricted to the **`QP Chair`**, **`Officers`**, and **Server Administrators**. Participants will receive a permission error if they attempt to run them, but they are documented here so you understand how leadership operates the bot on your behalf:
 
@@ -275,12 +303,12 @@ The following commands are strictly restricted to the **`QP Chair`**, **`Officer
 
 ---
 
-## 8. 💡 Tips & Frequently Encountered Issues
+## 9. 💡 Tips & Frequently Encountered Issues
 
 - **"You do not have a Team role yet!"**:
   - Solution: Head to `#team-assignment`, click "Join Team", and enter your team number (1–28).
 - **"Only Leadership can run this command"**:
-  - Explanation: This command is reserved for officers (such as adding inventory stock or modifying budgets). Check the list in Section 7 above!
+  - Explanation: This command is reserved for officers (such as adding inventory stock or modifying budgets). Check the list in Section 8 above!
 - **Can my teammate return an item that I checked out?**:
   - Yes! Any member with the same `Team <N>` role can click **"Request Return 📦"** on the team's card in `#borrowed-items`.
 - **Where can I see what parts are available right now?**:

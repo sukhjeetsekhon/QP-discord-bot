@@ -46,4 +46,7 @@ data/*.db
 .DS_Store
 Thumbs.db
 
+# Agent Run Directories
+.agents/
+
 
